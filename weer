@@ -1,0 +1,760 @@
+-- Services
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local UserInputService = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer or Players.PlayerAdded:Wait()
+
+-- Determine GUI parent
+local guiParent
+if type(gethui) == "function" then
+    guiParent = gethui()
+else
+    local success = pcall(function()
+        return game:GetService("CoreGui").Name
+    end)
+    if success then
+        guiParent = game:GetService("CoreGui")
+    else
+        guiParent = player:WaitForChild("PlayerGui")
+    end
+end
+
+-- Create ScreenGui
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "Gui_" .. math.random(10000, 99999)
+screenGui.ResetOnSpawn = false
+screenGui.DisplayOrder = 2147483647
+screenGui.IgnoreGuiInset = true
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
+screenGui.Parent = guiParent
+
+-- Main draggable frame
+local mainFrame = Instance.new("Frame")
+mainFrame.Parent = screenGui
+mainFrame.BackgroundColor3 = Color3.fromRGB(24, 24, 28)
+mainFrame.Size = UDim2.new(0, 220, 0, 185)
+mainFrame.Position = UDim2.new(0.3, 0, 0.5, -92)
+mainFrame.Draggable = true
+mainFrame.Active = true
+mainFrame.BorderSizePixel = 0
+
+local mainCorner = Instance.new("UICorner")
+mainCorner.CornerRadius = UDim.new(0, 8)
+mainCorner.Parent = mainFrame
+
+-- Top Bar / Header
+local topBar = Instance.new("Frame")
+topBar.Parent = mainFrame
+topBar.BackgroundColor3 = Color3.fromRGB(32, 32, 38)
+topBar.Size = UDim2.new(1, 0, 0, 32)
+topBar.BorderSizePixel = 0
+topBar.Active = true
+
+local topCorner = Instance.new("UICorner")
+topCorner.CornerRadius = UDim.new(0, 8)
+topCorner.Parent = topBar
+
+local topCover = Instance.new("Frame")
+topCover.Parent = topBar
+topCover.BackgroundColor3 = Color3.fromRGB(32, 32, 38)
+topCover.Size = UDim2.new(1, 0, 0, 6)
+topCover.Position = UDim2.new(0, 0, 1, -6)
+topCover.BorderSizePixel = 0
+
+
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Parent = topBar
+titleLabel.BackgroundTransparency = 1
+titleLabel.Position = UDim2.new(0, 10, 0, 0)
+titleLabel.Size = UDim2.new(0, 120, 1, 0)
+titleLabel.Text = "Weer Minesweeper"
+titleLabel.TextColor3 = Color3.fromRGB(240, 240, 240)
+titleLabel.TextSize = 13
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Minimize Button (-)
+local minBtn = Instance.new("TextButton")
+minBtn.Parent = topBar
+minBtn.BackgroundTransparency = 1
+minBtn.Position = UDim2.new(1, -56, 0, 0)
+minBtn.Size = UDim2.new(0, 28, 1, 0)
+minBtn.Text = "-"
+minBtn.TextColor3 = Color3.fromRGB(180, 180, 180)
+minBtn.TextSize = 18
+minBtn.Font = Enum.Font.GothamBold
+
+-- Close Button (X)
+local closeBtn = Instance.new("TextButton")
+closeBtn.Parent = topBar
+closeBtn.BackgroundTransparency = 1
+closeBtn.Position = UDim2.new(1, -28, 0, 0)
+closeBtn.Size = UDim2.new(0, 28, 1, 0)
+closeBtn.Text = "×"
+closeBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
+closeBtn.TextSize = 20
+closeBtn.Font = Enum.Font.GothamBold
+
+-- Container for Content
+local contentContainer = Instance.new("Frame")
+contentContainer.Parent = mainFrame
+contentContainer.BackgroundTransparency = 1
+contentContainer.Position = UDim2.new(0, 8, 0, 38)
+contentContainer.Size = UDim2.new(1, -16, 1, -40)
+
+-- Status label
+local status = Instance.new("TextLabel")
+status.Parent = contentContainer
+status.BackgroundTransparency = 1
+status.Size = UDim2.new(1, 0, 0, 18)
+status.Position = UDim2.new(0, 0, 0, 0)
+status.Text = "Status: Offline"
+status.TextColor3 = Color3.fromRGB(255, 90, 90)
+status.TextSize = 12
+status.Font = Enum.Font.GothamMedium
+status.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Helper to create buttons
+local function createButton(name, text, x, y, width, height, textColor)
+    local btn = Instance.new("TextButton")
+    btn.Name = name
+    btn.Parent = contentContainer
+    btn.Text = text
+    btn.Size = UDim2.new(0, width, 0, height)
+    btn.Position = UDim2.new(0, x, 0, y)
+    btn.BackgroundColor3 = Color3.fromRGB(40, 40, 48)
+    btn.TextColor3 = textColor or Color3.fromRGB(240, 240, 240)
+    btn.TextSize = 11
+    btn.Font = Enum.Font.GothamBold
+    btn.AutoButtonColor = true
+    btn.BorderSizePixel = 0
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 6)
+    corner.Parent = btn
+    
+    return btn
+end
+
+-- Main Action Buttons
+local toggleBtn = createButton("ToggleBtn", "START", 0, 22, 98, 28, Color3.fromRGB(100, 255, 100))
+local fastBtn   = createButton("FastBtn", "AUTO TOUCH: OFF", 106, 22, 98, 28, Color3.fromRGB(100, 220, 255))
+
+-- Anti-Lag Slider UI Construction
+local sliderBg = Instance.new("Frame")
+sliderBg.Parent = contentContainer
+sliderBg.BackgroundColor3 = Color3.fromRGB(32, 32, 38)
+sliderBg.Position = UDim2.new(0, 0, 0, 56)
+sliderBg.Size = UDim2.new(0, 204, 0, 38)
+sliderBg.BorderSizePixel = 0
+
+local sliderCorner = Instance.new("UICorner")
+sliderCorner.CornerRadius = UDim.new(0, 6)
+sliderCorner.Parent = sliderBg
+
+local sliderTitle = Instance.new("TextLabel")
+sliderTitle.Parent = sliderBg
+sliderTitle.BackgroundTransparency = 1
+sliderTitle.Position = UDim2.new(0, 8, 0, 3)
+sliderTitle.Size = UDim2.new(1, -16, 0, 14)
+sliderTitle.Text = "Anti-Lag Distance: 60 Studs"
+sliderTitle.TextColor3 = Color3.fromRGB(200, 200, 200)
+sliderTitle.TextSize = 10
+sliderTitle.Font = Enum.Font.GothamBold
+sliderTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+local sliderBar = Instance.new("Frame")
+sliderBar.Parent = sliderBg
+sliderBar.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+sliderBar.Position = UDim2.new(0, 8, 0, 24)
+sliderBar.Size = UDim2.new(1, -16, 0, 6)
+sliderBar.BorderSizePixel = 0
+
+local sliderBarCorner = Instance.new("UICorner")
+sliderBarCorner.CornerRadius = UDim.new(0, 3)
+sliderBarCorner.Parent = sliderBar
+
+local sliderFill = Instance.new("Frame")
+sliderFill.Parent = sliderBar
+sliderFill.BackgroundColor3 = Color3.fromRGB(100, 220, 255)
+sliderFill.Size = UDim2.new(60/250, 0, 1, 0)
+sliderFill.BorderSizePixel = 0
+
+local sliderFillCorner = Instance.new("UICorner")
+sliderFillCorner.CornerRadius = UDim.new(0, 3)
+sliderFillCorner.Parent = sliderFill
+
+local sliderButton = Instance.new("TextButton")
+sliderButton.Parent = sliderBar
+sliderButton.BackgroundTransparency = 1
+sliderButton.Size = UDim2.new(1, 0, 1, 0)
+sliderButton.Text = ""
+
+-- Unload Script Button
+local unloadBtn = createButton("UnloadBtn", "Unload Script", 0, 100, 204, 26, Color3.fromRGB(255, 120, 120))
+
+-------------------------------------------------------------------------------
+-- CORE VARIABLES & CONFIG
+-------------------------------------------------------------------------------
+
+local BATCH_SIZE = 30 
+
+local isScanning = false
+local isAutoTouching = false
+local maxDistance = 60 
+local isMinimized = false
+
+local cachedParts = {}      
+local neighborMap = {}      
+local numberTiles = {}      
+local knownMines = {}       
+local knownSafe = {}
+local probabilityMap = {}
+local currentBestGuess = nil 
+local connections = {}
+local pendingReset = false 
+local activeFlagPositions = {} 
+
+-------------------------------------------------------------------------------
+-- HELPER & CLEANUP FUNCTIONS
+-------------------------------------------------------------------------------
+
+local function getCharPos()
+    local char = player.Character
+    local root = char and (char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Head"))
+    return root and root.Position or nil
+end
+
+local function clearVisuals(part)
+    if not part then return end
+    if part:FindFirstChild("Mine_Highlight") then part.Mine_Highlight:Destroy() end
+    if part:FindFirstChild("Safe_Highlight") then part.Safe_Highlight:Destroy() end
+    if part:FindFirstChild("Guess_Highlight") then part.Guess_Highlight:Destroy() end
+end
+
+local function fullCleanup()
+    isScanning = false
+    isAutoTouching = false
+    pendingReset = false
+    
+    for _, conn in pairs(connections) do
+        if conn then conn:Disconnect() end
+    end
+    connections = {}
+    
+    for _, part in ipairs(cachedParts) do
+        if part and part:IsDescendantOf(workspace) then
+            clearVisuals(part)
+        end
+    end
+    
+    cachedParts = {}
+    neighborMap = {}
+    numberTiles = {}
+    knownMines = {}
+    knownSafe = {}
+    probabilityMap = {}
+    currentBestGuess = nil
+    activeFlagPositions = {}
+end
+
+-------------------------------------------------------------------------------
+-- SLIDER LOGIC
+-------------------------------------------------------------------------------
+
+local draggingSlider = false
+
+sliderButton.MouseButton1Down:Connect(function()
+    draggingSlider = true
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        draggingSlider = false
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if draggingSlider and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local mousePos = UserInputService:GetMouseLocation()
+        local barPos = sliderBar.AbsolutePosition
+        local barSize = sliderBar.AbsoluteSize
+        
+        local relX = math.clamp(mousePos.X - barPos.X, 0, barSize.X)
+        local scale = relX / barSize.X
+        
+        maxDistance = math.floor(scale * 250)
+        sliderFill.Size = UDim2.new(scale, 0, 1, 0)
+        
+        if maxDistance == 0 then
+            sliderTitle.Text = "Anti-Lag Distance: OFF (Infinite)"
+        else
+            sliderTitle.Text = string.format("Anti-Lag Distance: %d Studs", maxDistance)
+        end
+    end
+end)
+
+-------------------------------------------------------------------------------
+-- SOLVER & PROXIMITY FUNCTIONS
+-------------------------------------------------------------------------------
+
+local function sortByProximity(list, charPos)
+    if not charPos or #list <= 1 then return end
+    table.sort(list, function(a, b)
+        return (a.Position - charPos).Magnitude < (b.Position - charPos).Magnitude
+    end)
+end
+
+local function isColorMatch(c1, r, g, b)
+    return math.abs(c1.R - r) < 0.05 and math.abs(c1.G - g) < 0.05 and math.abs(c1.B - b) < 0.05
+end
+
+local function isExcluded(part)
+    if not part:IsA("BasePart") then return true end
+    return isColorMatch(part.Color, 1.000, 1.000, 0.490)
+end
+
+local function isUnrevealed(part)
+    if not part or not part:IsA("BasePart") or isExcluded(part) or numberTiles[part] then return false end
+    
+    local green1 = isColorMatch(part.Color, 0.459, 0.804, 0.392)
+    local green2 = isColorMatch(part.Color, 0.404, 0.706, 0.345)
+    local red1   = isColorMatch(part.Color, 0.804, 0.392, 0.392) 
+    local red2   = isColorMatch(part.Color, 0.706, 0.345, 0.345) 
+    local blue1  = isColorMatch(part.Color, 0.392, 0.741, 0.804)
+    local blue2  = isColorMatch(part.Color, 0.345, 0.651, 0.706)
+    
+    return green1 or green2 or red1 or red2 or blue1 or blue2
+end
+
+local function getNumber(part)
+    if not part or not part:IsA("BasePart") or isExcluded(part) then return nil end
+    for _, desc in ipairs(part:GetDescendants()) do
+        if desc:IsA("TextLabel") and desc.Visible then
+            local num = tonumber(desc.Text:match("%d+"))
+            if num and num >= 1 and num <= 8 then return num end
+        end
+    end
+    return nil
+end
+
+local function isTileCandidate(part)
+    if not part or not part:IsA("BasePart") then return false end
+    if isExcluded(part) then return false end
+    if numberTiles[part] or isUnrevealed(part) or getNumber(part) ~= nil then return true end
+    if part.Name == "Part" and part.Parent and string.find(string.lower(part.Parent.Name), "part") then
+        return true
+    end
+    return false
+end
+
+local function refreshFlagCache()
+    table.clear(activeFlagPositions)
+    local flagFolder = Workspace:FindFirstChild("Flag") or Workspace:FindFirstChild("Flags")
+    if flagFolder then
+        for _, desc in ipairs(flagFolder:GetDescendants()) do
+            if desc:IsA("BasePart") then
+                table.insert(activeFlagPositions, desc.Position)
+            end
+        end
+    end
+    for _, obj in ipairs(Workspace:GetChildren()) do
+        if obj:IsA("Model") and string.find(string.lower(obj.Name), "flag") then
+            local primary = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
+            if primary then
+                table.insert(activeFlagPositions, primary.Position)
+            end
+        end
+    end
+end
+
+local function hasFlag(part)
+    if not part or not part:IsDescendantOf(workspace) then return false end
+    local pPos = part.Position
+    local pSizeX = part.Size.X * 0.55
+    local pSizeZ = part.Size.Z * 0.55
+
+    for _, fPos in ipairs(activeFlagPositions) do
+        local dx = math.abs(fPos.X - pPos.X)
+        local dz = math.abs(fPos.Z - pPos.Z)
+        local dy = fPos.Y - pPos.Y
+        if dx < pSizeX and dz < pSizeZ and dy > 0.3 and dy < 6 then
+            return true
+        end
+    end
+    return false
+end
+
+local function clickTile(part)
+    if not part or not part:IsDescendantOf(workspace) then return end
+    local cd = part:FindFirstChildOfClass("ClickDetector") or part:FindFirstChildWhichIsA("ClickDetector", true)
+    if cd and typeof(fireclickdetector) == "function" then
+        fireclickdetector(cd, 0)
+    end
+end
+
+local function triggerTileTouch(targetTile)
+    if not targetTile or not targetTile:IsDescendantOf(workspace) then return end
+    local char = player.Character
+    if not char then return end
+    
+    local limb = char:FindFirstChild("RightFoot") 
+        or char:FindFirstChild("Right Leg") 
+        or char:FindFirstChild("LeftFoot") 
+        or char:FindFirstChild("Left Leg")
+        or char:FindFirstChild("HumanoidRootPart")
+        
+    if not limb then return end
+
+    if typeof(firetouchinterest) == "function" then
+        firetouchinterest(limb, targetTile, 0)
+        task.wait(0.015)
+        firetouchinterest(limb, targetTile, 1)
+    else
+        local probe = Instance.new("Part")
+        probe.Name = "LegProbe"
+        probe.Size = limb.Size
+        probe.CanCollide = false
+        probe.Transparency = 1
+        probe.CFrame = targetTile.CFrame
+        probe.Parent = char
+        task.wait(0.02)
+        probe:Destroy()
+    end
+end
+
+local function createHighlight(part, color, name)
+    if part:FindFirstChild(name) then return end
+    if name == "Guess_Highlight" then
+        if part:FindFirstChild("Safe_Highlight") or part:FindFirstChild("Mine_Highlight") then return end
+    elseif name == "Safe_Highlight" or name == "Mine_Highlight" then
+        if part:FindFirstChild("Guess_Highlight") then part.Guess_Highlight:Destroy() end
+    end
+
+    local h = Instance.new("Highlight")
+    h.Name = name
+    h.Adornee = part
+    h.FillColor = color
+    h.FillTransparency = 0.4
+    h.OutlineTransparency = 0.5
+    h.DepthMode = Enum.HighlightDepthMode.Occluded 
+    h.Parent = part
+end
+
+local function cacheNeighbors(centerPart, forceRefresh)
+    if not forceRefresh and neighborMap[centerPart] then return end
+    local neighbors = {}
+    local boxSize = centerPart.Size * 2.5 
+    local partsInBox = workspace:GetPartBoundsInBox(centerPart.CFrame, boxSize)
+    
+    for _, p in ipairs(partsInBox) do
+        if p ~= centerPart and isTileCandidate(p) then
+            if math.abs(p.Position.Y - centerPart.Position.Y) < 1.5 then
+                local dist = (p.Position - centerPart.Position).Magnitude
+                if dist < (centerPart.Size.X * 1.85) then 
+                    table.insert(neighbors, p)
+                end
+            end
+        end
+    end
+    neighborMap[centerPart] = neighbors
+end
+
+local function requestReset()
+    if pendingReset then return end
+    pendingReset = true
+    task.delay(0.2, function()
+        pendingReset = false
+        if not isScanning then return end
+        for p, _ in pairs(knownSafe) do clearVisuals(p) end
+        for p, _ in pairs(knownMines) do clearVisuals(p) end
+        if currentBestGuess then clearVisuals(currentBestGuess) end
+        knownSafe = {}
+        knownMines = {}
+        currentBestGuess = nil
+    end)
+end
+
+local function solveBoard()
+    if pendingReset then return end 
+    probabilityMap = {} 
+    
+    for centerPart, targetNum in pairs(numberTiles) do
+        if not centerPart:IsDescendantOf(workspace) then 
+            numberTiles[centerPart] = nil
+            continue 
+        end
+
+        local neighbors = neighborMap[centerPart]
+        if not neighbors then continue end 
+        
+        local unrevealed = {}
+        local mineCount = 0
+        
+        for _, n in ipairs(neighbors) do
+            if knownMines[n] then 
+                mineCount = mineCount + 1
+            elseif isUnrevealed(n) and not knownSafe[n] then 
+                table.insert(unrevealed, n) 
+            end
+        end
+        
+        local remainingMines = targetNum - mineCount
+        
+        if remainingMines == #unrevealed and #unrevealed > 0 then
+            for _, p in ipairs(unrevealed) do 
+                if not knownMines[p] then 
+                    knownMines[p] = true
+                    clearVisuals(p)
+                    createHighlight(p, Color3.new(1,0,0), "Mine_Highlight") 
+                end 
+            end
+        elseif remainingMines == 0 and #unrevealed > 0 then
+            for _, p in ipairs(unrevealed) do 
+                if not knownSafe[p] then 
+                    knownSafe[p] = true
+                    clearVisuals(p)
+                    createHighlight(p, Color3.new(0,1,0), "Safe_Highlight") 
+                end 
+            end
+        else
+            if #unrevealed > 0 then
+                local prob = remainingMines / #unrevealed
+                for _, p in ipairs(unrevealed) do
+                    if not probabilityMap[p] or prob > probabilityMap[p] then
+                        probabilityMap[p] = prob
+                    end
+                end
+            end
+        end
+    end
+
+    local hasSafeMoves = false
+    for _, _ in pairs(knownSafe) do hasSafeMoves = true; break end
+    
+    if currentBestGuess and (not currentBestGuess:IsDescendantOf(workspace) or knownSafe[currentBestGuess] or knownMines[currentBestGuess] or hasSafeMoves) then
+        if currentBestGuess:IsDescendantOf(workspace) and currentBestGuess:FindFirstChild("Guess_Highlight") then
+            currentBestGuess.Guess_Highlight:Destroy()
+        end
+        currentBestGuess = nil
+    end
+
+    if not hasSafeMoves then
+        local bestPart = nil
+        local lowestProb = 1.1 
+        
+        for part, prob in pairs(probabilityMap) do
+            if not knownMines[part] and not knownSafe[part] then
+                if prob < lowestProb then
+                    lowestProb = prob
+                    bestPart = part
+                end
+            end
+        end
+        
+        if bestPart and bestPart ~= currentBestGuess then
+            if currentBestGuess and currentBestGuess:IsDescendantOf(workspace) and currentBestGuess:FindFirstChild("Guess_Highlight") then
+                currentBestGuess.Guess_Highlight:Destroy()
+            end
+            currentBestGuess = bestPart
+            createHighlight(bestPart, Color3.fromRGB(255, 255, 0), "Guess_Highlight") 
+        end
+    end
+end
+
+local function startSolverLoop()
+    task.spawn(function()
+        while isScanning do
+            local validParts = {}
+            local charPos = getCharPos()
+            
+            for _, part in ipairs(cachedParts) do
+                if part and part:IsDescendantOf(workspace) then
+                    table.insert(validParts, part)
+                    
+                    if maxDistance > 0 and charPos then
+                        local dist = (part.Position - charPos).Magnitude
+                        if dist > maxDistance then
+                            clearVisuals(part)
+                            numberTiles[part] = nil
+                            knownSafe[part] = nil
+                            knownMines[part] = nil
+                            continue 
+                        end
+                    end
+                    
+                    if not neighborMap[part] then cacheNeighbors(part, false) end
+                    
+                    if isExcluded(part) then
+                        if numberTiles[part] or knownSafe[part] or knownMines[part] then
+                            numberTiles[part] = nil; knownSafe[part] = nil; knownMines[part] = nil
+                            clearVisuals(part)
+                        end
+                    elseif not isUnrevealed(part) and not numberTiles[part] then
+                        local num = getNumber(part)
+                        if num then
+                            numberTiles[part] = num
+                            knownSafe[part] = nil; knownMines[part] = nil
+                            clearVisuals(part)
+                        end
+                    end
+                else
+                    neighborMap[part] = nil
+                    numberTiles[part] = nil
+                    knownMines[part] = nil
+                    knownSafe[part] = nil
+                end
+            end
+            cachedParts = validParts
+            solveBoard()
+            task.wait(0.12)
+        end
+    end)
+end
+
+local function onDescendantAdded(descendant)
+    if isScanning and isTileCandidate(descendant) then
+        table.insert(cachedParts, descendant)
+        task.delay(0.1, function() 
+            if descendant:IsDescendantOf(workspace) then 
+                cacheNeighbors(descendant, true) 
+                for _, neighbor in ipairs(neighborMap[descendant] or {}) do
+                    cacheNeighbors(neighbor, true)
+                end
+                requestReset()
+            end 
+        end)
+    end
+end
+
+-------------------------------------------------------------------------------
+-- UI INTERACTIONS & BUTTONS
+-------------------------------------------------------------------------------
+
+minBtn.MouseButton1Click:Connect(function()
+    isMinimized = not isMinimized
+    if isMinimized then
+        minBtn.Text = "+"
+        contentContainer.Visible = false
+        mainFrame:TweenSize(UDim2.new(0, 220, 0, 32), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.15, true)
+    else
+        minBtn.Text = "-"
+        contentContainer.Visible = true
+        mainFrame:TweenSize(UDim2.new(0, 220, 0, 185), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.15, true)
+    end
+end)
+
+closeBtn.MouseButton1Click:Connect(function()
+    fullCleanup()
+    screenGui:Destroy()
+end)
+
+toggleBtn.MouseButton1Click:Connect(function()
+    if isScanning then
+        fullCleanup()
+        toggleBtn.Text = "START"
+        toggleBtn.TextColor3 = Color3.fromRGB(100, 255, 100)
+        fastBtn.Text = "AUTO TOUCH: OFF"
+        fastBtn.TextColor3 = Color3.fromRGB(100, 220, 255)
+        status.Text = "Status: Offline"
+        status.TextColor3 = Color3.fromRGB(255, 90, 90)
+    else
+        isScanning = true
+        toggleBtn.Text = "STOP"
+        toggleBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
+        status.Text = "Status: Scanning..."
+        status.TextColor3 = Color3.fromRGB(100, 255, 100)
+        
+        cachedParts = {}; neighborMap = {}
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            if isTileCandidate(obj) then 
+                table.insert(cachedParts, obj)
+                cacheNeighbors(obj, false)
+            end
+        end
+        table.insert(connections, workspace.DescendantAdded:Connect(onDescendantAdded))
+        startSolverLoop()
+    end
+end)
+
+fastBtn.MouseButton1Click:Connect(function()
+    if not isScanning then return end
+    isAutoTouching = not isAutoTouching 
+    
+    if isAutoTouching then
+        fastBtn.Text = "AUTO TOUCH: ON"
+        fastBtn.TextColor3 = Color3.fromRGB(100, 255, 100)
+        status.Text = "Status: Proximity Active"
+        
+        task.spawn(function()
+            while isAutoTouching and isScanning do
+                if not pendingReset then
+                    local charPos = getCharPos()
+                    refreshFlagCache()
+                    
+                    local misplacedFlags = {}
+                    for part, _ in pairs(knownSafe) do
+                        if part and part:IsDescendantOf(workspace) and isUnrevealed(part) and hasFlag(part) then
+                            table.insert(misplacedFlags, part)
+                        end
+                    end
+                    sortByProximity(misplacedFlags, charPos)
+                    for _, part in ipairs(misplacedFlags) do
+                        if not isAutoTouching or not isScanning or pendingReset then break end
+                        clickTile(part); task.wait(0.02)
+                    end
+                    
+                    local minesToFlag = {}
+                    for part, _ in pairs(knownMines) do
+                        if part and part:IsDescendantOf(workspace) and isUnrevealed(part) and not hasFlag(part) then
+                            table.insert(minesToFlag, part)
+                        end
+                    end
+                    sortByProximity(minesToFlag, charPos)
+                    for _, part in ipairs(minesToFlag) do
+                        if not isAutoTouching or not isScanning or pendingReset then break end
+                        clickTile(part); task.wait(0.02)
+                    end
+                    
+                    local safeToReveal = {}
+                    for part, _ in pairs(knownSafe) do
+                        if part and part:IsDescendantOf(workspace) and isUnrevealed(part) and not hasFlag(part) then
+                            table.insert(safeToReveal, part)
+                        end
+                    end
+                    sortByProximity(safeToReveal, charPos)
+                    
+                    if #safeToReveal > 0 then
+                        local batchCount = math.min(#safeToReveal, BATCH_SIZE)
+                        for i = 1, batchCount do
+                            local part = safeToReveal[i]
+                            task.spawn(function()
+                                if isAutoTouching and isScanning and not pendingReset then triggerTileTouch(part) end
+                            end)
+                        end
+                        task.wait(0.05)
+                    else
+                        task.wait(0.08)
+                    end
+                else
+                    task.wait(0.1) 
+                end
+            end
+            isAutoTouching = false
+            fastBtn.Text = "AUTO TOUCH: OFF"
+            fastBtn.TextColor3 = Color3.fromRGB(100, 220, 255)
+            if isScanning then status.Text = "Status: Scanning..." end
+        end)
+    else
+        isAutoTouching = false
+        fastBtn.Text = "AUTO TOUCH: OFF"
+        fastBtn.TextColor3 = Color3.fromRGB(100, 220, 255)
+        status.Text = "Status: Scanning..."
+    end
+end)
+
+unloadBtn.MouseButton1Click:Connect(function()
+    fullCleanup()
+    screenGui:Destroy()
+end)
