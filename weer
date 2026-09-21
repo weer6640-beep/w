@@ -62,13 +62,12 @@ topCover.Size = UDim2.new(1, 0, 0, 6)
 topCover.Position = UDim2.new(0, 0, 1, -6)
 topCover.BorderSizePixel = 0
 
-
 local titleLabel = Instance.new("TextLabel")
 titleLabel.Parent = topBar
 titleLabel.BackgroundTransparency = 1
 titleLabel.Position = UDim2.new(0, 10, 0, 0)
 titleLabel.Size = UDim2.new(0, 120, 1, 0)
-titleLabel.Text = "Weer Minesweeper"
+titleLabel.Text = "Weer Minesweeper Pro"
 titleLabel.TextColor3 = Color3.fromRGB(240, 240, 240)
 titleLabel.TextSize = 13
 titleLabel.Font = Enum.Font.GothamBold
@@ -296,7 +295,7 @@ UserInputService.InputChanged:Connect(function(input)
 end)
 
 -------------------------------------------------------------------------------
--- SOLVER & PROXIMITY FUNCTIONS
+-- SOLVER & PATTERN ENGINE (PURE PATTERN MODE)
 -------------------------------------------------------------------------------
 
 local function sortByProximity(list, charPos)
@@ -476,10 +475,59 @@ local function requestReset()
     end)
 end
 
+local function solveAdvancedPatterns(tileDataList)
+    for i = 1, #tileDataList do
+        for j = i + 1, #tileDataList do
+            local t1, t2 = tileDataList[i], tileDataList[j]
+            
+            local t2Set = {}
+            for _, p in ipairs(t2.unrevealed) do t2Set[p] = true end
+            
+            local isSubset = true
+            for _, p in ipairs(t1.unrevealed) do
+                if not t2Set[p] then
+                    isSubset = false
+                    break
+                end
+            end
+            
+            if isSubset and #t2.unrevealed > #t1.unrevealed then
+                local diffUnrevealed = {}
+                local t1Set = {}
+                for _, p in ipairs(t1.unrevealed) do t1Set[p] = true end
+                for _, p in ipairs(t2.unrevealed) do
+                    if not t1Set[p] then table.insert(diffUnrevealed, p) end
+                end
+                
+                local diffMines = t2.remaining - t1.remaining
+                if diffMines == 0 and #diffUnrevealed > 0 then
+                    for _, p in ipairs(diffUnrevealed) do
+                        if not knownSafe[p] then
+                            knownSafe[p] = true
+                            clearVisuals(p)
+                            createHighlight(p, Color3.new(0,1,0), "Safe_Highlight")
+                        end
+                    end
+                elseif diffMines == #diffUnrevealed and #diffUnrevealed > 0 then
+                    for _, p in ipairs(diffUnrevealed) do
+                        if not knownMines[p] then
+                            knownMines[p] = true
+                            clearVisuals(p)
+                            createHighlight(p, Color3.new(1,0,0), "Mine_Highlight")
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
+
 local function solveBoard()
     if pendingReset then return end 
     probabilityMap = {} 
     
+    local tileDataList = {}
+
     for centerPart, targetNum in pairs(numberTiles) do
         if not centerPart:IsDescendantOf(workspace) then 
             numberTiles[centerPart] = nil
@@ -487,7 +535,7 @@ local function solveBoard()
         end
 
         local neighbors = neighborMap[centerPart]
-        if not neighbors then continue end 
+        if not neighbors then continue end
         
         local unrevealed = {}
         local mineCount = 0
@@ -501,6 +549,15 @@ local function solveBoard()
         end
         
         local remainingMines = targetNum - mineCount
+        
+        if #unrevealed > 0 then
+            table.insert(tileDataList, {
+                tile = centerPart,
+                number = targetNum,
+                unrevealed = unrevealed,
+                remaining = remainingMines
+            })
+        end
         
         if remainingMines == #unrevealed and #unrevealed > 0 then
             for _, p in ipairs(unrevealed) do 
@@ -530,6 +587,8 @@ local function solveBoard()
         end
     end
 
+    solveAdvancedPatterns(tileDataList)
+
     local hasSafeMoves = false
     for _, _ in pairs(knownSafe) do hasSafeMoves = true; break end
     
@@ -558,7 +617,7 @@ local function solveBoard()
                 currentBestGuess.Guess_Highlight:Destroy()
             end
             currentBestGuess = bestPart
-            createHighlight(bestPart, Color3.fromRGB(255, 255, 0), "Guess_Highlight") 
+            createHighlight(bestPart, Color3.fromRGB(0, 100, 255), "Guess_Highlight") 
         end
     end
 end
@@ -723,6 +782,8 @@ fastBtn.MouseButton1Click:Connect(function()
                             table.insert(safeToReveal, part)
                         end
                     end
+                    
+                    -- ตัดช่องสุ่ม (Guess) ออก ให้ Auto Touch กดเฉพาะช่องที่คำนวณแพทเทิร์นมั่นใจแล้วเท่านั้น
                     sortByProximity(safeToReveal, charPos)
                     
                     if #safeToReveal > 0 then
@@ -733,9 +794,9 @@ fastBtn.MouseButton1Click:Connect(function()
                                 if isAutoTouching and isScanning and not pendingReset then triggerTileTouch(part) end
                             end)
                         end
-                        task.wait(0.05)
+                        task.wait(0.04)
                     else
-                        task.wait(0.08)
+                        task.wait(0.06)
                     end
                 else
                     task.wait(0.1) 
