@@ -29,12 +29,12 @@ screenGui.IgnoreGuiInset = true
 screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
 screenGui.Parent = guiParent
 
--- Main draggable frame
+-- Main draggable frame (ปรับความสูงเพิ่มขึ้นเพื่อให้ใส่ Slider ตัวที่สองได้พอดี)
 local mainFrame = Instance.new("Frame")
 mainFrame.Parent = screenGui
 mainFrame.BackgroundColor3 = Color3.fromRGB(24, 24, 28)
-mainFrame.Size = UDim2.new(0, 220, 0, 185)
-mainFrame.Position = UDim2.new(0.3, 0, 0.5, -92)
+mainFrame.Size = UDim2.new(0, 220, 0, 310)
+mainFrame.Position = UDim2.new(0.3, 0, 0.5, -155)
 mainFrame.Draggable = true
 mainFrame.Active = true
 mainFrame.BorderSizePixel = 0
@@ -140,11 +140,14 @@ end
 local toggleBtn = createButton("ToggleBtn", "START", 0, 22, 98, 28, Color3.fromRGB(100, 255, 100))
 local fastBtn   = createButton("FastBtn", "AUTO TOUCH: OFF", 106, 22, 98, 28, Color3.fromRGB(100, 220, 255))
 
+-- Pattern Library Toggle Button
+local patternBtn = createButton("PatternBtn", "PATTERN LIB: ON", 0, 56, 204, 26, Color3.fromRGB(100, 255, 150))
+
 -- Anti-Lag Slider UI Construction
 local sliderBg = Instance.new("Frame")
 sliderBg.Parent = contentContainer
 sliderBg.BackgroundColor3 = Color3.fromRGB(32, 32, 38)
-sliderBg.Position = UDim2.new(0, 0, 0, 56)
+sliderBg.Position = UDim2.new(0, 0, 0, 88)
 sliderBg.Size = UDim2.new(0, 204, 0, 38)
 sliderBg.BorderSizePixel = 0
 
@@ -190,8 +193,58 @@ sliderButton.BackgroundTransparency = 1
 sliderButton.Size = UDim2.new(1, 0, 1, 0)
 sliderButton.Text = ""
 
--- Unload Script Button
-local unloadBtn = createButton("UnloadBtn", "Unload Script", 0, 100, 204, 26, Color3.fromRGB(255, 120, 120))
+-- Exact Enum Cap Slider UI Construction (เพิ่มใหม่ตรงนี้)
+local enumSliderBg = Instance.new("Frame")
+enumSliderBg.Parent = contentContainer
+enumSliderBg.BackgroundColor3 = Color3.fromRGB(32, 32, 38)
+enumSliderBg.Position = UDim2.new(0, 0, 0, 134)
+enumSliderBg.Size = UDim2.new(0, 204, 0, 38)
+enumSliderBg.BorderSizePixel = 0
+
+local enumSliderCorner = Instance.new("UICorner")
+enumSliderCorner.CornerRadius = UDim.new(0, 6)
+enumSliderCorner.Parent = enumSliderBg
+
+local enumSliderTitle = Instance.new("TextLabel")
+enumSliderTitle.Parent = enumSliderBg
+enumSliderTitle.BackgroundTransparency = 1
+enumSliderTitle.Position = UDim2.new(0, 8, 0, 3)
+enumSliderTitle.Size = UDim2.new(1, -16, 0, 14)
+enumSliderTitle.Text = "Exact Enum Cap: 15"
+enumSliderTitle.TextColor3 = Color3.fromRGB(200, 200, 200)
+enumSliderTitle.TextSize = 10
+enumSliderTitle.Font = Enum.Font.GothamBold
+enumSliderTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+local enumSliderBar = Instance.new("Frame")
+enumSliderBar.Parent = enumSliderBg
+enumSliderBar.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+enumSliderBar.Position = UDim2.new(0, 8, 0, 24)
+enumSliderBar.Size = UDim2.new(1, -16, 0, 6)
+enumSliderBar.BorderSizePixel = 0
+
+local enumSliderBarCorner = Instance.new("UICorner")
+enumSliderBarCorner.CornerRadius = UDim.new(0, 3)
+enumSliderBarCorner.Parent = enumSliderBar
+
+local enumSliderFill = Instance.new("Frame")
+enumSliderFill.Parent = enumSliderBar
+enumSliderFill.BackgroundColor3 = Color3.fromRGB(255, 180, 100)
+enumSliderFill.Size = UDim2.new((15 - 5) / 25, 0, 1, 0) -- ค่าเริ่มต้น 15 จากช่วง 5-30
+enumSliderFill.BorderSizePixel = 0
+
+local enumSliderFillCorner = Instance.new("UICorner")
+enumSliderFillCorner.CornerRadius = UDim.new(0, 3)
+enumSliderFillCorner.Parent = enumSliderFill
+
+local enumSliderButton = Instance.new("TextButton")
+enumSliderButton.Parent = enumSliderBar
+enumSliderButton.BackgroundTransparency = 1
+enumSliderButton.Size = UDim2.new(1, 0, 1, 0)
+enumSliderButton.Text = ""
+
+-- Unload Script Button (ย้ายตำแหน่งลงมาให้รับกับ UI ใหม่)
+local unloadBtn = createButton("UnloadBtn", "Unload Script", 0, 180, 204, 26, Color3.fromRGB(255, 120, 120))
 
 -------------------------------------------------------------------------------
 -- CORE VARIABLES & CONFIG
@@ -201,8 +254,12 @@ local BATCH_SIZE = 30
 
 local isScanning = false
 local isAutoTouching = false
+local isPatternLibEnabled = true  
 local maxDistance = 60 
 local isMinimized = false
+
+-- ตัวแปรควบคุมขีดจำกัด Exact Enumeration (ปรับเปลี่ยนได้ผ่าน Slider ด้านบน)
+local EXACT_ENUM_MAX_SIZE = 15    
 
 local cachedParts = {}      
 local neighborMap = {}      
@@ -263,39 +320,61 @@ end
 -------------------------------------------------------------------------------
 
 local draggingSlider = false
+local draggingEnumSlider = false
 
 sliderButton.MouseButton1Down:Connect(function()
     draggingSlider = true
 end)
 
+enumSliderButton.MouseButton1Down:Connect(function()
+    draggingEnumSlider = true
+end)
+
 UserInputService.InputEnded:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
         draggingSlider = false
+        draggingEnumSlider = false
     end
 end)
 
 UserInputService.InputChanged:Connect(function(input)
-    if draggingSlider and input.UserInputType == Enum.UserInputType.MouseMovement then
+    if input.UserInputType == Enum.UserInputType.MouseMovement then
         local mousePos = UserInputService:GetMouseLocation()
-        local barPos = sliderBar.AbsolutePosition
-        local barSize = sliderBar.AbsoluteSize
         
-        local relX = math.clamp(mousePos.X - barPos.X, 0, barSize.X)
-        local scale = relX / barSize.X
+        -- Anti-Lag Distance Slider
+        if draggingSlider then
+            local barPos = sliderBar.AbsolutePosition
+            local barSize = sliderBar.AbsoluteSize
+            local relX = math.clamp(mousePos.X - barPos.X, 0, barSize.X)
+            local scale = relX / barSize.X
+            
+            maxDistance = math.floor(scale * 250)
+            sliderFill.Size = UDim2.new(scale, 0, 1, 0)
+            
+            if maxDistance == 0 then
+                sliderTitle.Text = "Anti-Lag Distance: OFF (Infinite)"
+            else
+                sliderTitle.Text = string.format("Anti-Lag Distance: %d Studs", maxDistance)
+            end
+        end
         
-        maxDistance = math.floor(scale * 250)
-        sliderFill.Size = UDim2.new(scale, 0, 1, 0)
-        
-        if maxDistance == 0 then
-            sliderTitle.Text = "Anti-Lag Distance: OFF (Infinite)"
-        else
-            sliderTitle.Text = string.format("Anti-Lag Distance: %d Studs", maxDistance)
+        -- Exact Enum Cap Slider (เพิ่มระบบควบคุมการเลื่อนที่นี่)
+        if draggingEnumSlider then
+            local barPos = enumSliderBar.AbsolutePosition
+            local barSize = enumSliderBar.AbsoluteSize
+            local relX = math.clamp(mousePos.X - barPos.X, 0, barSize.X)
+            local scale = relX / barSize.X
+            
+            -- ช่วงตั้งค่า: 5 ถึง 30 ช่อง
+            EXACT_ENUM_MAX_SIZE = math.floor(5 + scale * 25)
+            enumSliderFill.Size = UDim2.new(scale, 0, 1, 0)
+            enumSliderTitle.Text = string.format("Exact Enum Cap: %d", EXACT_ENUM_MAX_SIZE)
         end
     end
 end)
 
 -------------------------------------------------------------------------------
--- SOLVER & PATTERN ENGINE (PURE PATTERN MODE)
+-- SOLVER & ADVANCED PATTERN LIBRARY ENGINE
 -------------------------------------------------------------------------------
 
 local function sortByProximity(list, charPos)
@@ -311,7 +390,15 @@ end
 
 local function isExcluded(part)
     if not part:IsA("BasePart") then return true end
-    return isColorMatch(part.Color, 1.000, 1.000, 0.490)
+    if isColorMatch(part.Color, 1.000, 1.000, 0.490) or isColorMatch(part.Color, 0.950, 0.950, 0.450) then
+        return true
+    end
+    for _, desc in ipairs(part:GetDescendants()) do
+        if desc:IsA("TextLabel") and desc.Visible and tonumber(desc.Text:match("%d+")) then
+            return true
+        end
+    end
+    return false
 end
 
 local function isUnrevealed(part)
@@ -328,11 +415,14 @@ local function isUnrevealed(part)
 end
 
 local function getNumber(part)
-    if not part or not part:IsA("BasePart") or isExcluded(part) then return nil end
+    if not part or not part:IsA("BasePart") then return nil end
     for _, desc in ipairs(part:GetDescendants()) do
         if desc:IsA("TextLabel") and desc.Visible then
-            local num = tonumber(desc.Text:match("%d+"))
-            if num and num >= 1 and num <= 8 then return num end
+            local text = desc.Text
+            local num = tonumber(text:match("%d+"))
+            if num and num >= 1 and num <= 8 then 
+                return num 
+            end
         end
     end
     return nil
@@ -340,7 +430,7 @@ end
 
 local function isTileCandidate(part)
     if not part or not part:IsA("BasePart") then return false end
-    if isExcluded(part) then return false end
+    if isExcluded(part) and getNumber(part) == nil then return false end
     if numberTiles[part] or isUnrevealed(part) or getNumber(part) ~= nil then return true end
     if part.Name == "Part" and part.Parent and string.find(string.lower(part.Parent.Name), "part") then
         return true
@@ -395,6 +485,10 @@ end
 
 local function triggerTileTouch(targetTile)
     if not targetTile or not targetTile:IsDescendantOf(workspace) then return end
+    
+    clearVisuals(targetTile)
+    knownSafe[targetTile] = nil
+    
     local char = player.Character
     if not char then return end
     
@@ -475,7 +569,33 @@ local function requestReset()
     end)
 end
 
+local function solveStructuralPatterns(tileDataList)
+    if not isPatternLibEnabled then return end
+
+    for _, tData in ipairs(tileDataList) do
+        if #tData.unrevealed == tData.remaining and tData.remaining > 0 then
+            for _, p in ipairs(tData.unrevealed) do
+                if not knownMines[p] then
+                    knownMines[p] = true
+                    createHighlight(p, Color3.new(1,0,0), "Mine_Highlight")
+                end
+            end
+        elseif tData.remaining == 0 and #tData.unrevealed > 0 then
+            for _, p in ipairs(tData.unrevealed) do
+                if not knownSafe[p] then
+                    knownSafe[p] = true
+                    createHighlight(p, Color3.new(0,1,0), "Safe_Highlight")
+                end
+            end
+        end
+    end
+end
+
 local function solveAdvancedPatterns(tileDataList)
+    if not isPatternLibEnabled then return end
+
+    solveStructuralPatterns(tileDataList)
+
     for i = 1, #tileDataList do
         for j = i + 1, #tileDataList do
             local t1, t2 = tileDataList[i], tileDataList[j]
@@ -504,7 +624,6 @@ local function solveAdvancedPatterns(tileDataList)
                     for _, p in ipairs(diffUnrevealed) do
                         if not knownSafe[p] then
                             knownSafe[p] = true
-                            clearVisuals(p)
                             createHighlight(p, Color3.new(0,1,0), "Safe_Highlight")
                         end
                     end
@@ -512,9 +631,78 @@ local function solveAdvancedPatterns(tileDataList)
                     for _, p in ipairs(diffUnrevealed) do
                         if not knownMines[p] then
                             knownMines[p] = true
-                            clearVisuals(p)
                             createHighlight(p, Color3.new(1,0,0), "Mine_Highlight")
                         end
+                    end
+                end
+            end
+        end
+    end
+
+    local allUnrevealedSet = {}
+    local unrevealedList = {}
+    for _, tData in ipairs(tileDataList) do
+        for _, p in ipairs(tData.unrevealed) do
+            if not allUnrevealedSet[p] then
+                allUnrevealedSet[p] = true
+                table.insert(unrevealedList, p)
+            end
+        end
+    end
+
+    -- ใช้ค่า EXACT_ENUM_MAX_SIZE ที่ปรับได้จาก Slider UI โดยตรง
+    if #unrevealedList > 0 and #unrevealedList <= EXACT_ENUM_MAX_SIZE then
+        local validCombinations = 0
+        local mineInclusionCount = {}
+        for _, p in ipairs(unrevealedList) do mineInclusionCount[p] = 0 end
+
+        local function evaluateCombination(index, currentAssignment)
+            if index > #unrevealedList then
+                local valid = true
+                for _, tData in ipairs(tileDataList) do
+                    local count = 0
+                    for _, p in ipairs(tData.unrevealed) do
+                        if currentAssignment[p] then count = count + 1 end
+                    end
+                    if count ~= tData.remaining then
+                        valid = false
+                        break
+                    end
+                end
+                if valid then
+                    validCombinations = validCombinations + 1
+                    for _, p in ipairs(unrevealedList) do
+                        if currentAssignment[p] then
+                            mineInclusionCount[p] = mineInclusionCount[p] + 1
+                        end
+                    end
+                end
+                return
+            end
+
+            currentAssignment[unrevealedList[index]] = false
+            evaluateCombination(index + 1, currentAssignment)
+
+            currentAssignment[unrevealedList[index]] = true
+            evaluateCombination(index + 1, currentAssignment)
+        end
+
+        local success = pcall(function()
+            evaluateCombination(1, {})
+        end)
+
+        if success and validCombinations > 0 then
+            for _, p in ipairs(unrevealedList) do
+                local mineProb = mineInclusionCount[p] / validCombinations
+                if mineProb == 0 then
+                    if not knownSafe[p] then
+                        knownSafe[p] = true
+                        createHighlight(p, Color3.new(0,1,0), "Safe_Highlight")
+                    end
+                elseif mineProb == 1 then
+                    if not knownMines[p] then
+                        knownMines[p] = true
+                        createHighlight(p, Color3.new(1,0,0), "Mine_Highlight")
                     end
                 end
             end
@@ -563,7 +751,6 @@ local function solveBoard()
             for _, p in ipairs(unrevealed) do 
                 if not knownMines[p] then 
                     knownMines[p] = true
-                    clearVisuals(p)
                     createHighlight(p, Color3.new(1,0,0), "Mine_Highlight") 
                 end 
             end
@@ -571,7 +758,6 @@ local function solveBoard()
             for _, p in ipairs(unrevealed) do 
                 if not knownSafe[p] then 
                     knownSafe[p] = true
-                    clearVisuals(p)
                     createHighlight(p, Color3.new(0,1,0), "Safe_Highlight") 
                 end 
             end
@@ -630,6 +816,14 @@ local function startSolverLoop()
             
             for _, part in ipairs(cachedParts) do
                 if part and part:IsDescendantOf(workspace) then
+                    if isExcluded(part) then
+                        clearVisuals(part)
+                        knownSafe[part] = nil
+                        knownMines[part] = nil
+                        numberTiles[part] = getNumber(part)
+                        continue
+                    end
+                    
                     table.insert(validParts, part)
                     
                     if maxDistance > 0 and charPos then
@@ -645,18 +839,11 @@ local function startSolverLoop()
                     
                     if not neighborMap[part] then cacheNeighbors(part, false) end
                     
-                    if isExcluded(part) then
-                        if numberTiles[part] or knownSafe[part] or knownMines[part] then
-                            numberTiles[part] = nil; knownSafe[part] = nil; knownMines[part] = nil
-                            clearVisuals(part)
-                        end
-                    elseif not isUnrevealed(part) and not numberTiles[part] then
-                        local num = getNumber(part)
-                        if num then
-                            numberTiles[part] = num
-                            knownSafe[part] = nil; knownMines[part] = nil
-                            clearVisuals(part)
-                        end
+                    local num = getNumber(part)
+                    if num then
+                        numberTiles[part] = num
+                    elseif isExcluded(part) then
+                        numberTiles[part] = nil
                     end
                 else
                     neighborMap[part] = nil
@@ -700,7 +887,7 @@ minBtn.MouseButton1Click:Connect(function()
     else
         minBtn.Text = "-"
         contentContainer.Visible = true
-        mainFrame:TweenSize(UDim2.new(0, 220, 0, 185), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.15, true)
+        mainFrame:TweenSize(UDim2.new(0, 220, 0, 310), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.15, true)
     end
 end)
 
@@ -737,6 +924,17 @@ toggleBtn.MouseButton1Click:Connect(function()
     end
 end)
 
+patternBtn.MouseButton1Click:Connect(function()
+    isPatternLibEnabled = not isPatternLibEnabled
+    if isPatternLibEnabled then
+        patternBtn.Text = "PATTERN LIB: ON"
+        patternBtn.TextColor3 = Color3.fromRGB(100, 255, 150)
+    else
+        patternBtn.Text = "PATTERN LIB: OFF"
+        patternBtn.TextColor3 = Color3.fromRGB(255, 150, 100)
+    end
+end)
+
 fastBtn.MouseButton1Click:Connect(function()
     if not isScanning then return end
     isAutoTouching = not isAutoTouching 
@@ -754,7 +952,7 @@ fastBtn.MouseButton1Click:Connect(function()
                     
                     local misplacedFlags = {}
                     for part, _ in pairs(knownSafe) do
-                        if part and part:IsDescendantOf(workspace) and isUnrevealed(part) and hasFlag(part) then
+                        if part and part:IsDescendantOf(workspace) and hasFlag(part) then
                             table.insert(misplacedFlags, part)
                         end
                     end
@@ -766,7 +964,7 @@ fastBtn.MouseButton1Click:Connect(function()
                     
                     local minesToFlag = {}
                     for part, _ in pairs(knownMines) do
-                        if part and part:IsDescendantOf(workspace) and isUnrevealed(part) and not hasFlag(part) then
+                        if part and part:IsDescendantOf(workspace) and not hasFlag(part) then
                             table.insert(minesToFlag, part)
                         end
                     end
@@ -778,12 +976,11 @@ fastBtn.MouseButton1Click:Connect(function()
                     
                     local safeToReveal = {}
                     for part, _ in pairs(knownSafe) do
-                        if part and part:IsDescendantOf(workspace) and isUnrevealed(part) and not hasFlag(part) then
+                        if part and part:IsDescendantOf(workspace) and not hasFlag(part) then
                             table.insert(safeToReveal, part)
                         end
                     end
                     
-                    -- ตัดช่องสุ่ม (Guess) ออก ให้ Auto Touch กดเฉพาะช่องที่คำนวณแพทเทิร์นมั่นใจแล้วเท่านั้น
                     sortByProximity(safeToReveal, charPos)
                     
                     if #safeToReveal > 0 then
