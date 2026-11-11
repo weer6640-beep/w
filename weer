@@ -1,428 +1,313 @@
 -- Services
-local Players = game:GetService("Players")
+local Players   = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local UserInputService = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer or Players.PlayerAdded:Wait()
 
--- Determine GUI parent
 local guiParent
 if type(gethui) == "function" then
     guiParent = gethui()
 else
-    local success = pcall(function()
-        return game:GetService("CoreGui").Name
-    end)
-    if success then
-        guiParent = game:GetService("CoreGui")
-    else
-        guiParent = player:WaitForChild("PlayerGui")
+    local ok = pcall(function() return game:GetService("CoreGui").Name end)
+    if ok then guiParent = game:GetService("CoreGui")
+    else guiParent = player:WaitForChild("PlayerGui") end
+end
+
+-- ScreenGui
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name            = "Gui_" .. math.random(10000,99999)
+screenGui.ResetOnSpawn    = false
+screenGui.DisplayOrder    = 2147483647
+screenGui.IgnoreGuiInset  = true
+screenGui.ZIndexBehavior  = Enum.ZIndexBehavior.Global
+screenGui.Parent          = guiParent
+
+-- Main frame
+local mainFrame = Instance.new("Frame")
+mainFrame.Parent           = screenGui
+mainFrame.BackgroundColor3 = Color3.fromRGB(24,24,28)
+mainFrame.Size             = UDim2.new(0,220,0,310)
+mainFrame.Position         = UDim2.new(0.3,0,0.5,-155)
+mainFrame.Draggable        = true
+mainFrame.Active           = true
+mainFrame.BorderSizePixel  = 0
+local c1 = Instance.new("UICorner"); c1.CornerRadius=UDim.new(0,8); c1.Parent=mainFrame
+
+local topBar = Instance.new("Frame")
+topBar.Parent           = mainFrame
+topBar.BackgroundColor3 = Color3.fromRGB(32,32,38)
+topBar.Size             = UDim2.new(1,0,0,32)
+topBar.BorderSizePixel  = 0
+topBar.Active           = true
+local c2 = Instance.new("UICorner"); c2.CornerRadius=UDim.new(0,8); c2.Parent=topBar
+local c3 = Instance.new("Frame")
+c3.Parent=topBar; c3.BackgroundColor3=Color3.fromRGB(32,32,38)
+c3.Size=UDim2.new(1,0,0,6); c3.Position=UDim2.new(0,0,1,-6); c3.BorderSizePixel=0
+
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Parent=topBar; titleLabel.BackgroundTransparency=1
+titleLabel.Position=UDim2.new(0,10,0,0); titleLabel.Size=UDim2.new(0,120,1,0)
+titleLabel.Text="Weer Minesweeper Pro"; titleLabel.TextColor3=Color3.fromRGB(240,240,240)
+titleLabel.TextSize=13; titleLabel.Font=Enum.Font.GothamBold
+titleLabel.TextXAlignment=Enum.TextXAlignment.Left
+
+local minBtn = Instance.new("TextButton")
+minBtn.Parent=topBar; minBtn.BackgroundTransparency=1
+minBtn.Position=UDim2.new(1,-56,0,0); minBtn.Size=UDim2.new(0,28,1,0)
+minBtn.Text="-"; minBtn.TextColor3=Color3.fromRGB(180,180,180)
+minBtn.TextSize=18; minBtn.Font=Enum.Font.GothamBold
+
+local closeBtn = Instance.new("TextButton")
+closeBtn.Parent=topBar; closeBtn.BackgroundTransparency=1
+closeBtn.Position=UDim2.new(1,-28,0,0); closeBtn.Size=UDim2.new(0,28,1,0)
+closeBtn.Text="×"; closeBtn.TextColor3=Color3.fromRGB(255,100,100)
+closeBtn.TextSize=20; closeBtn.Font=Enum.Font.GothamBold
+
+local contentContainer = Instance.new("Frame")
+contentContainer.Parent=mainFrame; contentContainer.BackgroundTransparency=1
+contentContainer.Position=UDim2.new(0,8,0,38); contentContainer.Size=UDim2.new(1,-16,1,-40)
+
+local status = Instance.new("TextLabel")
+status.Parent=contentContainer; status.BackgroundTransparency=1
+status.Size=UDim2.new(1,0,0,18); status.Position=UDim2.new(0,0,0,0)
+status.Text="Status: Offline"; status.TextColor3=Color3.fromRGB(255,90,90)
+status.TextSize=12; status.Font=Enum.Font.GothamMedium
+status.TextXAlignment=Enum.TextXAlignment.Left
+
+local function createButton(name,text,x,y,w,h,tc)
+    local b=Instance.new("TextButton"); b.Name=name; b.Parent=contentContainer
+    b.Text=text; b.Size=UDim2.new(0,w,0,h); b.Position=UDim2.new(0,x,0,y)
+    b.BackgroundColor3=Color3.fromRGB(40,40,48); b.TextColor3=tc or Color3.fromRGB(240,240,240)
+    b.TextSize=11; b.Font=Enum.Font.GothamBold; b.AutoButtonColor=true; b.BorderSizePixel=0
+    local co=Instance.new("UICorner"); co.CornerRadius=UDim.new(0,6); co.Parent=b
+    return b
+end
+
+local toggleBtn  = createButton("ToggleBtn",  "START",           0,  22, 98,28,Color3.fromRGB(100,255,100))
+local fastBtn    = createButton("FastBtn",    "AUTO TOUCH: OFF",106,  22, 98,28,Color3.fromRGB(100,220,255))
+local patternBtn = createButton("PatternBtn", "PATTERN LIB: ON",  0,  56,204,26,Color3.fromRGB(100,255,150))
+
+-- Anti-lag slider
+local sliderBg=Instance.new("Frame"); sliderBg.Parent=contentContainer
+sliderBg.BackgroundColor3=Color3.fromRGB(32,32,38); sliderBg.Position=UDim2.new(0,0,0,88)
+sliderBg.Size=UDim2.new(0,204,0,38); sliderBg.BorderSizePixel=0
+local sc=Instance.new("UICorner"); sc.CornerRadius=UDim.new(0,6); sc.Parent=sliderBg
+local sliderTitle=Instance.new("TextLabel"); sliderTitle.Parent=sliderBg
+sliderTitle.BackgroundTransparency=1; sliderTitle.Position=UDim2.new(0,8,0,3)
+sliderTitle.Size=UDim2.new(1,-16,0,14); sliderTitle.Text="Anti-Lag Distance: 60 Studs"
+sliderTitle.TextColor3=Color3.fromRGB(200,200,200); sliderTitle.TextSize=10
+sliderTitle.Font=Enum.Font.GothamBold; sliderTitle.TextXAlignment=Enum.TextXAlignment.Left
+local sliderBar=Instance.new("Frame"); sliderBar.Parent=sliderBg
+sliderBar.BackgroundColor3=Color3.fromRGB(50,50,60); sliderBar.Position=UDim2.new(0,8,0,24)
+sliderBar.Size=UDim2.new(1,-16,0,6); sliderBar.BorderSizePixel=0
+local sbc=Instance.new("UICorner"); sbc.CornerRadius=UDim.new(0,3); sbc.Parent=sliderBar
+local sliderFill=Instance.new("Frame"); sliderFill.Parent=sliderBar
+sliderFill.BackgroundColor3=Color3.fromRGB(100,220,255); sliderFill.Size=UDim2.new(60/250,0,1,0)
+sliderFill.BorderSizePixel=0
+local sfc=Instance.new("UICorner"); sfc.CornerRadius=UDim.new(0,3); sfc.Parent=sliderFill
+local sliderButton=Instance.new("TextButton"); sliderButton.Parent=sliderBar
+sliderButton.BackgroundTransparency=1; sliderButton.Size=UDim2.new(1,0,1,0); sliderButton.Text=""
+
+-- Exact enum cap slider
+local enumSliderBg=Instance.new("Frame"); enumSliderBg.Parent=contentContainer
+enumSliderBg.BackgroundColor3=Color3.fromRGB(32,32,38); enumSliderBg.Position=UDim2.new(0,0,0,134)
+enumSliderBg.Size=UDim2.new(0,204,0,38); enumSliderBg.BorderSizePixel=0
+local ec=Instance.new("UICorner"); ec.CornerRadius=UDim.new(0,6); ec.Parent=enumSliderBg
+local enumSliderTitle=Instance.new("TextLabel"); enumSliderTitle.Parent=enumSliderBg
+enumSliderTitle.BackgroundTransparency=1; enumSliderTitle.Position=UDim2.new(0,8,0,3)
+enumSliderTitle.Size=UDim2.new(1,-16,0,14); enumSliderTitle.Text="Exact Enum Cap: 15"
+enumSliderTitle.TextColor3=Color3.fromRGB(200,200,200); enumSliderTitle.TextSize=10
+enumSliderTitle.Font=Enum.Font.GothamBold; enumSliderTitle.TextXAlignment=Enum.TextXAlignment.Left
+local enumSliderBar=Instance.new("Frame"); enumSliderBar.Parent=enumSliderBg
+enumSliderBar.BackgroundColor3=Color3.fromRGB(50,50,60); enumSliderBar.Position=UDim2.new(0,8,0,24)
+enumSliderBar.Size=UDim2.new(1,-16,0,6); enumSliderBar.BorderSizePixel=0
+local ebc=Instance.new("UICorner"); ebc.CornerRadius=UDim.new(0,3); ebc.Parent=enumSliderBar
+local enumSliderFill=Instance.new("Frame"); enumSliderFill.Parent=enumSliderBar
+enumSliderFill.BackgroundColor3=Color3.fromRGB(255,180,100)
+enumSliderFill.Size=UDim2.new((15-5)/25,0,1,0); enumSliderFill.BorderSizePixel=0
+local efc=Instance.new("UICorner"); efc.CornerRadius=UDim.new(0,3); efc.Parent=enumSliderFill
+local enumSliderButton=Instance.new("TextButton"); enumSliderButton.Parent=enumSliderBar
+enumSliderButton.BackgroundTransparency=1; enumSliderButton.Size=UDim2.new(1,0,1,0)
+enumSliderButton.Text=""
+
+local unloadBtn = createButton("UnloadBtn","Unload Script",0,180,204,26,Color3.fromRGB(255,120,120))
+
+-------------------------------------------------------------------------------
+-- STATE
+-------------------------------------------------------------------------------
+local BATCH_SIZE          = 30
+local isScanning          = false
+local isAutoTouching      = false
+local isPatternLibEnabled = true
+local maxDistance         = 60
+local isMinimized         = false
+local EXACT_ENUM_MAX_SIZE = 15
+
+local cachedParts         = {}
+local neighborMap         = {}
+local numberTiles         = {}
+local knownMines          = {}
+local knownSafe           = {}
+local lockedSafe          = {}
+local lockedMines         = {}
+local touchBlacklist      = {}
+-- tileToConstraints[part] = list of tileData indices that contain this part
+-- rebuilt each solveBoard call, used for tier-3 pruning
+local probabilityMap      = {}
+local currentBestGuess    = nil
+local connections         = {}
+local pendingReset        = false
+local activeFlagPositions = {}
+
+-- propagation queue (tier 1)
+local propagationQueue    = {}
+local inPropQueue         = {}
+
+-------------------------------------------------------------------------------
+-- LOCK HELPERS
+-------------------------------------------------------------------------------
+local function markSafe(p)
+    if knownMines[p] then return end
+    if knownSafe[p] and lockedSafe[p] then return end
+    knownSafe[p]  = true
+    lockedSafe[p] = true
+    local h = p:FindFirstChild("Safe_Highlight")
+    if not h then
+        h = Instance.new("Highlight")
+        h.Name="Safe_Highlight"; h.Adornee=p
+        h.FillColor=Color3.new(0,1,0); h.FillTransparency=0.4
+        h.OutlineTransparency=0.5; h.DepthMode=Enum.HighlightDepthMode.Occluded
+        h.Parent=p
+    end
+    -- tier 1: queue neighbors for re-evaluation
+    if neighborMap[p] then
+        for _,nb in ipairs(neighborMap[p]) do
+            if numberTiles[nb] and not inPropQueue[nb] then
+                inPropQueue[nb] = true
+                table.insert(propagationQueue, nb)
+            end
+        end
     end
 end
 
--- Create ScreenGui
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "Gui_" .. math.random(10000, 99999)
-screenGui.ResetOnSpawn = false
-screenGui.DisplayOrder = 2147483647
-screenGui.IgnoreGuiInset = true
-screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
-screenGui.Parent = guiParent
-
--- Main draggable frame (ปรับความสูงเพิ่มขึ้นเพื่อให้ใส่ Slider ตัวที่สองได้พอดี)
-local mainFrame = Instance.new("Frame")
-mainFrame.Parent = screenGui
-mainFrame.BackgroundColor3 = Color3.fromRGB(24, 24, 28)
-mainFrame.Size = UDim2.new(0, 220, 0, 310)
-mainFrame.Position = UDim2.new(0.3, 0, 0.5, -155)
-mainFrame.Draggable = true
-mainFrame.Active = true
-mainFrame.BorderSizePixel = 0
-
-local mainCorner = Instance.new("UICorner")
-mainCorner.CornerRadius = UDim.new(0, 8)
-mainCorner.Parent = mainFrame
-
--- Top Bar / Header
-local topBar = Instance.new("Frame")
-topBar.Parent = mainFrame
-topBar.BackgroundColor3 = Color3.fromRGB(32, 32, 38)
-topBar.Size = UDim2.new(1, 0, 0, 32)
-topBar.BorderSizePixel = 0
-topBar.Active = true
-
-local topCorner = Instance.new("UICorner")
-topCorner.CornerRadius = UDim.new(0, 8)
-topCorner.Parent = topBar
-
-local topCover = Instance.new("Frame")
-topCover.Parent = topBar
-topCover.BackgroundColor3 = Color3.fromRGB(32, 32, 38)
-topCover.Size = UDim2.new(1, 0, 0, 6)
-topCover.Position = UDim2.new(0, 0, 1, -6)
-topCover.BorderSizePixel = 0
-
-local titleLabel = Instance.new("TextLabel")
-titleLabel.Parent = topBar
-titleLabel.BackgroundTransparency = 1
-titleLabel.Position = UDim2.new(0, 10, 0, 0)
-titleLabel.Size = UDim2.new(0, 120, 1, 0)
-titleLabel.Text = "Weer Minesweeper Pro"
-titleLabel.TextColor3 = Color3.fromRGB(240, 240, 240)
-titleLabel.TextSize = 13
-titleLabel.Font = Enum.Font.GothamBold
-titleLabel.TextXAlignment = Enum.TextXAlignment.Left
-
--- Minimize Button (-)
-local minBtn = Instance.new("TextButton")
-minBtn.Parent = topBar
-minBtn.BackgroundTransparency = 1
-minBtn.Position = UDim2.new(1, -56, 0, 0)
-minBtn.Size = UDim2.new(0, 28, 1, 0)
-minBtn.Text = "-"
-minBtn.TextColor3 = Color3.fromRGB(180, 180, 180)
-minBtn.TextSize = 18
-minBtn.Font = Enum.Font.GothamBold
-
--- Close Button (X)
-local closeBtn = Instance.new("TextButton")
-closeBtn.Parent = topBar
-closeBtn.BackgroundTransparency = 1
-closeBtn.Position = UDim2.new(1, -28, 0, 0)
-closeBtn.Size = UDim2.new(0, 28, 1, 0)
-closeBtn.Text = "×"
-closeBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
-closeBtn.TextSize = 20
-closeBtn.Font = Enum.Font.GothamBold
-
--- Container for Content
-local contentContainer = Instance.new("Frame")
-contentContainer.Parent = mainFrame
-contentContainer.BackgroundTransparency = 1
-contentContainer.Position = UDim2.new(0, 8, 0, 38)
-contentContainer.Size = UDim2.new(1, -16, 1, -40)
-
--- Status label
-local status = Instance.new("TextLabel")
-status.Parent = contentContainer
-status.BackgroundTransparency = 1
-status.Size = UDim2.new(1, 0, 0, 18)
-status.Position = UDim2.new(0, 0, 0, 0)
-status.Text = "Status: Offline"
-status.TextColor3 = Color3.fromRGB(255, 90, 90)
-status.TextSize = 12
-status.Font = Enum.Font.GothamMedium
-status.TextXAlignment = Enum.TextXAlignment.Left
-
--- Helper to create buttons
-local function createButton(name, text, x, y, width, height, textColor)
-    local btn = Instance.new("TextButton")
-    btn.Name = name
-    btn.Parent = contentContainer
-    btn.Text = text
-    btn.Size = UDim2.new(0, width, 0, height)
-    btn.Position = UDim2.new(0, x, 0, y)
-    btn.BackgroundColor3 = Color3.fromRGB(40, 40, 48)
-    btn.TextColor3 = textColor or Color3.fromRGB(240, 240, 240)
-    btn.TextSize = 11
-    btn.Font = Enum.Font.GothamBold
-    btn.AutoButtonColor = true
-    btn.BorderSizePixel = 0
-    
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 6)
-    corner.Parent = btn
-    
-    return btn
+local function markMine(p)
+    if knownSafe[p] then return end
+    if knownMines[p] and lockedMines[p] then return end
+    knownMines[p]  = true
+    lockedMines[p] = true
+    local h = p:FindFirstChild("Mine_Highlight")
+    if not h then
+        h = Instance.new("Highlight")
+        h.Name="Mine_Highlight"; h.Adornee=p
+        h.FillColor=Color3.new(1,0,0); h.FillTransparency=0.4
+        h.OutlineTransparency=0.5; h.DepthMode=Enum.HighlightDepthMode.Occluded
+        h.Parent=p
+    end
+    -- tier 1: queue neighbors for re-evaluation
+    if neighborMap[p] then
+        for _,nb in ipairs(neighborMap[p]) do
+            if numberTiles[nb] and not inPropQueue[nb] then
+                inPropQueue[nb] = true
+                table.insert(propagationQueue, nb)
+            end
+        end
+    end
 end
 
--- Main Action Buttons
-local toggleBtn = createButton("ToggleBtn", "START", 0, 22, 98, 28, Color3.fromRGB(100, 255, 100))
-local fastBtn   = createButton("FastBtn", "AUTO TOUCH: OFF", 106, 22, 98, 28, Color3.fromRGB(100, 220, 255))
-
--- Pattern Library Toggle Button
-local patternBtn = createButton("PatternBtn", "PATTERN LIB: ON", 0, 56, 204, 26, Color3.fromRGB(100, 255, 150))
-
--- Anti-Lag Slider UI Construction
-local sliderBg = Instance.new("Frame")
-sliderBg.Parent = contentContainer
-sliderBg.BackgroundColor3 = Color3.fromRGB(32, 32, 38)
-sliderBg.Position = UDim2.new(0, 0, 0, 88)
-sliderBg.Size = UDim2.new(0, 204, 0, 38)
-sliderBg.BorderSizePixel = 0
-
-local sliderCorner = Instance.new("UICorner")
-sliderCorner.CornerRadius = UDim.new(0, 6)
-sliderCorner.Parent = sliderBg
-
-local sliderTitle = Instance.new("TextLabel")
-sliderTitle.Parent = sliderBg
-sliderTitle.BackgroundTransparency = 1
-sliderTitle.Position = UDim2.new(0, 8, 0, 3)
-sliderTitle.Size = UDim2.new(1, -16, 0, 14)
-sliderTitle.Text = "Anti-Lag Distance: 60 Studs"
-sliderTitle.TextColor3 = Color3.fromRGB(200, 200, 200)
-sliderTitle.TextSize = 10
-sliderTitle.Font = Enum.Font.GothamBold
-sliderTitle.TextXAlignment = Enum.TextXAlignment.Left
-
-local sliderBar = Instance.new("Frame")
-sliderBar.Parent = sliderBg
-sliderBar.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
-sliderBar.Position = UDim2.new(0, 8, 0, 24)
-sliderBar.Size = UDim2.new(1, -16, 0, 6)
-sliderBar.BorderSizePixel = 0
-
-local sliderBarCorner = Instance.new("UICorner")
-sliderBarCorner.CornerRadius = UDim.new(0, 3)
-sliderBarCorner.Parent = sliderBar
-
-local sliderFill = Instance.new("Frame")
-sliderFill.Parent = sliderBar
-sliderFill.BackgroundColor3 = Color3.fromRGB(100, 220, 255)
-sliderFill.Size = UDim2.new(60/250, 0, 1, 0)
-sliderFill.BorderSizePixel = 0
-
-local sliderFillCorner = Instance.new("UICorner")
-sliderFillCorner.CornerRadius = UDim.new(0, 3)
-sliderFillCorner.Parent = sliderFill
-
-local sliderButton = Instance.new("TextButton")
-sliderButton.Parent = sliderBar
-sliderButton.BackgroundTransparency = 1
-sliderButton.Size = UDim2.new(1, 0, 1, 0)
-sliderButton.Text = ""
-
--- Exact Enum Cap Slider UI Construction (เพิ่มใหม่ตรงนี้)
-local enumSliderBg = Instance.new("Frame")
-enumSliderBg.Parent = contentContainer
-enumSliderBg.BackgroundColor3 = Color3.fromRGB(32, 32, 38)
-enumSliderBg.Position = UDim2.new(0, 0, 0, 134)
-enumSliderBg.Size = UDim2.new(0, 204, 0, 38)
-enumSliderBg.BorderSizePixel = 0
-
-local enumSliderCorner = Instance.new("UICorner")
-enumSliderCorner.CornerRadius = UDim.new(0, 6)
-enumSliderCorner.Parent = enumSliderBg
-
-local enumSliderTitle = Instance.new("TextLabel")
-enumSliderTitle.Parent = enumSliderBg
-enumSliderTitle.BackgroundTransparency = 1
-enumSliderTitle.Position = UDim2.new(0, 8, 0, 3)
-enumSliderTitle.Size = UDim2.new(1, -16, 0, 14)
-enumSliderTitle.Text = "Exact Enum Cap: 15"
-enumSliderTitle.TextColor3 = Color3.fromRGB(200, 200, 200)
-enumSliderTitle.TextSize = 10
-enumSliderTitle.Font = Enum.Font.GothamBold
-enumSliderTitle.TextXAlignment = Enum.TextXAlignment.Left
-
-local enumSliderBar = Instance.new("Frame")
-enumSliderBar.Parent = enumSliderBg
-enumSliderBar.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
-enumSliderBar.Position = UDim2.new(0, 8, 0, 24)
-enumSliderBar.Size = UDim2.new(1, -16, 0, 6)
-enumSliderBar.BorderSizePixel = 0
-
-local enumSliderBarCorner = Instance.new("UICorner")
-enumSliderBarCorner.CornerRadius = UDim.new(0, 3)
-enumSliderBarCorner.Parent = enumSliderBar
-
-local enumSliderFill = Instance.new("Frame")
-enumSliderFill.Parent = enumSliderBar
-enumSliderFill.BackgroundColor3 = Color3.fromRGB(255, 180, 100)
-enumSliderFill.Size = UDim2.new((15 - 5) / 25, 0, 1, 0) -- ค่าเริ่มต้น 15 จากช่วง 5-30
-enumSliderFill.BorderSizePixel = 0
-
-local enumSliderFillCorner = Instance.new("UICorner")
-enumSliderFillCorner.CornerRadius = UDim.new(0, 3)
-enumSliderFillCorner.Parent = enumSliderFill
-
-local enumSliderButton = Instance.new("TextButton")
-enumSliderButton.Parent = enumSliderBar
-enumSliderButton.BackgroundTransparency = 1
-enumSliderButton.Size = UDim2.new(1, 0, 1, 0)
-enumSliderButton.Text = ""
-
--- Unload Script Button (ย้ายตำแหน่งลงมาให้รับกับ UI ใหม่)
-local unloadBtn = createButton("UnloadBtn", "Unload Script", 0, 180, 204, 26, Color3.fromRGB(255, 120, 120))
+local function unmarkTile(p)
+    knownSafe[p]=nil; knownMines[p]=nil
+    lockedSafe[p]=nil; lockedMines[p]=nil
+    for _,name in ipairs({"Mine_Highlight","Safe_Highlight","Guess_Highlight"}) do
+        local h=p:FindFirstChild(name); if h then h:Destroy() end
+    end
+end
 
 -------------------------------------------------------------------------------
--- CORE VARIABLES & CONFIG
+-- HELPERS
 -------------------------------------------------------------------------------
-
-local BATCH_SIZE = 30 
-
-local isScanning = false
-local isAutoTouching = false
-local isPatternLibEnabled = true  
-local maxDistance = 60 
-local isMinimized = false
-
--- ตัวแปรควบคุมขีดจำกัด Exact Enumeration (ปรับเปลี่ยนได้ผ่าน Slider ด้านบน)
-local EXACT_ENUM_MAX_SIZE = 15    
-
-local cachedParts = {}      
-local neighborMap = {}      
-local numberTiles = {}      
-local knownMines = {}       
-local knownSafe = {}
-local probabilityMap = {}
-local currentBestGuess = nil 
-local connections = {}
-local pendingReset = false 
-local activeFlagPositions = {} 
-
--------------------------------------------------------------------------------
--- HELPER & CLEANUP FUNCTIONS
--------------------------------------------------------------------------------
-
 local function getCharPos()
-    local char = player.Character
-    local root = char and (char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Head"))
+    local char=player.Character
+    local root=char and (char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Head"))
     return root and root.Position or nil
 end
 
 local function clearVisuals(part)
     if not part then return end
-    if part:FindFirstChild("Mine_Highlight") then part.Mine_Highlight:Destroy() end
-    if part:FindFirstChild("Safe_Highlight") then part.Safe_Highlight:Destroy() end
-    if part:FindFirstChild("Guess_Highlight") then part.Guess_Highlight:Destroy() end
+    for _,name in ipairs({"Mine_Highlight","Safe_Highlight","Guess_Highlight"}) do
+        local h=part:FindFirstChild(name); if h then h:Destroy() end
+    end
 end
 
 local function fullCleanup()
-    isScanning = false
-    isAutoTouching = false
-    pendingReset = false
-    
-    for _, conn in pairs(connections) do
-        if conn then conn:Disconnect() end
+    isScanning=false; isAutoTouching=false; pendingReset=false
+    for _,conn in pairs(connections) do if conn then conn:Disconnect() end end
+    connections={}
+    for _,part in ipairs(cachedParts) do
+        if part and part:IsDescendantOf(workspace) then clearVisuals(part) end
     end
-    connections = {}
-    
-    for _, part in ipairs(cachedParts) do
-        if part and part:IsDescendantOf(workspace) then
-            clearVisuals(part)
-        end
-    end
-    
-    cachedParts = {}
-    neighborMap = {}
-    numberTiles = {}
-    knownMines = {}
-    knownSafe = {}
-    probabilityMap = {}
-    currentBestGuess = nil
-    activeFlagPositions = {}
+    cachedParts={}; neighborMap={}; numberTiles={}
+    knownMines={}; knownSafe={}; lockedSafe={}; lockedMines={}
+    touchBlacklist={}; probabilityMap={}
+    currentBestGuess=nil; activeFlagPositions={}
+    propagationQueue={}; inPropQueue={}
 end
 
--------------------------------------------------------------------------------
--- SLIDER LOGIC
--------------------------------------------------------------------------------
-
-local draggingSlider = false
-local draggingEnumSlider = false
-
-sliderButton.MouseButton1Down:Connect(function()
-    draggingSlider = true
-end)
-
-enumSliderButton.MouseButton1Down:Connect(function()
-    draggingEnumSlider = true
-end)
-
-UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        draggingSlider = false
-        draggingEnumSlider = false
-    end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement then
-        local mousePos = UserInputService:GetMouseLocation()
-        
-        -- Anti-Lag Distance Slider
-        if draggingSlider then
-            local barPos = sliderBar.AbsolutePosition
-            local barSize = sliderBar.AbsoluteSize
-            local relX = math.clamp(mousePos.X - barPos.X, 0, barSize.X)
-            local scale = relX / barSize.X
-            
-            maxDistance = math.floor(scale * 250)
-            sliderFill.Size = UDim2.new(scale, 0, 1, 0)
-            
-            if maxDistance == 0 then
-                sliderTitle.Text = "Anti-Lag Distance: OFF (Infinite)"
-            else
-                sliderTitle.Text = string.format("Anti-Lag Distance: %d Studs", maxDistance)
-            end
-        end
-        
-        -- Exact Enum Cap Slider (เพิ่มระบบควบคุมการเลื่อนที่นี่)
-        if draggingEnumSlider then
-            local barPos = enumSliderBar.AbsolutePosition
-            local barSize = enumSliderBar.AbsoluteSize
-            local relX = math.clamp(mousePos.X - barPos.X, 0, barSize.X)
-            local scale = relX / barSize.X
-            
-            -- ช่วงตั้งค่า: 5 ถึง 30 ช่อง
-            EXACT_ENUM_MAX_SIZE = math.floor(5 + scale * 25)
-            enumSliderFill.Size = UDim2.new(scale, 0, 1, 0)
-            enumSliderTitle.Text = string.format("Exact Enum Cap: %d", EXACT_ENUM_MAX_SIZE)
-        end
-    end
-end)
-
--------------------------------------------------------------------------------
--- SOLVER & ADVANCED PATTERN LIBRARY ENGINE
--------------------------------------------------------------------------------
-
-local function sortByProximity(list, charPos)
-    if not charPos or #list <= 1 then return end
-    table.sort(list, function(a, b)
-        return (a.Position - charPos).Magnitude < (b.Position - charPos).Magnitude
+local function sortByProximity(list,charPos)
+    if not charPos or #list<=1 then return end
+    table.sort(list,function(a,b)
+        return (a.Position-charPos).Magnitude < (b.Position-charPos).Magnitude
     end)
 end
 
-local function isColorMatch(c1, r, g, b)
-    return math.abs(c1.R - r) < 0.05 and math.abs(c1.G - g) < 0.05 and math.abs(c1.B - b) < 0.05
+local function isColorMatch(c1,r,g,b)
+    return math.abs(c1.R-r)<0.10 and math.abs(c1.G-g)<0.10 and math.abs(c1.B-b)<0.10
 end
 
 local function isExcluded(part)
     if not part:IsA("BasePart") then return true end
-    if isColorMatch(part.Color, 1.000, 1.000, 0.490) or isColorMatch(part.Color, 0.950, 0.950, 0.450) then
-        return true
-    end
-    for _, desc in ipairs(part:GetDescendants()) do
-        if desc:IsA("TextLabel") and desc.Visible and tonumber(desc.Text:match("%d+")) then
-            return true
-        end
+    if isColorMatch(part.Color,1,1,0.490) or isColorMatch(part.Color,0.950,0.950,0.450) then return true end
+    for _,desc in ipairs(part:GetDescendants()) do
+        if desc:IsA("TextLabel") and desc.Visible and tonumber(desc.Text:match("%d+")) then return true end
     end
     return false
 end
 
 local function isUnrevealed(part)
-    if not part or not part:IsA("BasePart") or isExcluded(part) or numberTiles[part] then return false end
-    
-    local green1 = isColorMatch(part.Color, 0.459, 0.804, 0.392)
-    local green2 = isColorMatch(part.Color, 0.404, 0.706, 0.345)
-    local red1   = isColorMatch(part.Color, 0.804, 0.392, 0.392) 
-    local red2   = isColorMatch(part.Color, 0.706, 0.345, 0.345) 
-    local blue1  = isColorMatch(part.Color, 0.392, 0.741, 0.804)
-    local blue2  = isColorMatch(part.Color, 0.345, 0.651, 0.706)
-    
-    return green1 or green2 or red1 or red2 or blue1 or blue2
+    if not part or not part:IsA("BasePart") then return false end
+    if isExcluded(part) or numberTiles[part] then return false end
+    if touchBlacklist[part] then return false end
+
+    local green1=isColorMatch(part.Color,0.459,0.804,0.392)
+    local green2=isColorMatch(part.Color,0.404,0.706,0.345)
+    local red1  =isColorMatch(part.Color,0.804,0.392,0.392)
+    local red2  =isColorMatch(part.Color,0.706,0.345,0.345)
+    local blue1 =isColorMatch(part.Color,0.392,0.741,0.804)
+    local blue2 =isColorMatch(part.Color,0.345,0.651,0.706)
+    if green1 or green2 or red1 or red2 or blue1 or blue2 then return true end
+
+    local r,g,b=part.Color.R,part.Color.G,part.Color.B
+    if g>r+0.08 and g>b+0.05 and g>0.30 then return true end
+    if r>g+0.15 and r>b+0.15 and r>0.40 then return true end
+    if b>r+0.05 and g>r+0.05 and b>0.35 then return true end
+
+    -- snow/grey theme
+    local spread=math.max(r,g,b)-math.min(r,g,b)
+    if spread<0.12 and r>0.30 and r<0.80 then
+        for _,desc in ipairs(part:GetDescendants()) do
+            if desc:IsA("SurfaceGui") then return false end
+        end
+        return true
+    end
+    return false
 end
 
 local function getNumber(part)
     if not part or not part:IsA("BasePart") then return nil end
-    for _, desc in ipairs(part:GetDescendants()) do
+    for _,desc in ipairs(part:GetDescendants()) do
         if desc:IsA("TextLabel") and desc.Visible then
-            local text = desc.Text
-            local num = tonumber(text:match("%d+"))
-            if num and num >= 1 and num <= 8 then 
-                return num 
-            end
+            local num=tonumber(desc.Text:match("%d+"))
+            if num and num>=1 and num<=8 then return num end
         end
     end
     return nil
@@ -430,46 +315,36 @@ end
 
 local function isTileCandidate(part)
     if not part or not part:IsA("BasePart") then return false end
-    if isExcluded(part) and getNumber(part) == nil then return false end
-    if numberTiles[part] or isUnrevealed(part) or getNumber(part) ~= nil then return true end
-    if part.Name == "Part" and part.Parent and string.find(string.lower(part.Parent.Name), "part") then
-        return true
-    end
-    return false
+    if isExcluded(part) and getNumber(part)==nil then return false end
+    if numberTiles[part] or isUnrevealed(part) or getNumber(part)~=nil then return true end
+    local s=part.Size
+    return s.X<8 and s.Z<8 and s.Y<4 and part.Anchored
 end
 
 local function refreshFlagCache()
     table.clear(activeFlagPositions)
-    local flagFolder = Workspace:FindFirstChild("Flag") or Workspace:FindFirstChild("Flags")
-    if flagFolder then
-        for _, desc in ipairs(flagFolder:GetDescendants()) do
-            if desc:IsA("BasePart") then
-                table.insert(activeFlagPositions, desc.Position)
-            end
+    local ff=Workspace:FindFirstChild("Flag") or Workspace:FindFirstChild("Flags")
+    if ff then
+        for _,desc in ipairs(ff:GetDescendants()) do
+            if desc:IsA("BasePart") then table.insert(activeFlagPositions,desc.Position) end
         end
     end
-    for _, obj in ipairs(Workspace:GetChildren()) do
-        if obj:IsA("Model") and string.find(string.lower(obj.Name), "flag") then
-            local primary = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
-            if primary then
-                table.insert(activeFlagPositions, primary.Position)
-            end
+    for _,obj in ipairs(Workspace:GetChildren()) do
+        if obj:IsA("Model") and string.find(string.lower(obj.Name),"flag") then
+            local pr=obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
+            if pr then table.insert(activeFlagPositions,pr.Position) end
         end
     end
 end
 
 local function hasFlag(part)
     if not part or not part:IsDescendantOf(workspace) then return false end
-    local pPos = part.Position
-    local pSizeX = part.Size.X * 0.55
-    local pSizeZ = part.Size.Z * 0.55
-
-    for _, fPos in ipairs(activeFlagPositions) do
-        local dx = math.abs(fPos.X - pPos.X)
-        local dz = math.abs(fPos.Z - pPos.Z)
-        local dy = fPos.Y - pPos.Y
-        if dx < pSizeX and dz < pSizeZ and dy > 0.3 and dy < 6 then
-            return true
+    local pPos=part.Position
+    local px=part.Size.X*0.55; local pz=part.Size.Z*0.55
+    for _,fPos in ipairs(activeFlagPositions) do
+        if math.abs(fPos.X-pPos.X)<px and math.abs(fPos.Z-pPos.Z)<pz then
+            local dy=fPos.Y-pPos.Y
+            if dy>0.3 and dy<6 then return true end
         end
     end
     return false
@@ -477,333 +352,458 @@ end
 
 local function clickTile(part)
     if not part or not part:IsDescendantOf(workspace) then return end
-    local cd = part:FindFirstChildOfClass("ClickDetector") or part:FindFirstChildWhichIsA("ClickDetector", true)
-    if cd and typeof(fireclickdetector) == "function" then
-        fireclickdetector(cd, 0)
-    end
+    local cd=part:FindFirstChildOfClass("ClickDetector") or part:FindFirstChildWhichIsA("ClickDetector",true)
+    if cd and typeof(fireclickdetector)=="function" then fireclickdetector(cd,0) end
 end
 
 local function triggerTileTouch(targetTile)
     if not targetTile or not targetTile:IsDescendantOf(workspace) then return end
-    
-    clearVisuals(targetTile)
-    knownSafe[targetTile] = nil
-    
-    local char = player.Character
-    if not char then return end
-    
-    local limb = char:FindFirstChild("RightFoot") 
-        or char:FindFirstChild("Right Leg") 
-        or char:FindFirstChild("LeftFoot") 
-        or char:FindFirstChild("Left Leg")
+    if touchBlacklist[targetTile] then return end
+    unmarkTile(targetTile)
+    local char=player.Character; if not char then return end
+    local limb=char:FindFirstChild("RightFoot") or char:FindFirstChild("Right Leg")
+        or char:FindFirstChild("LeftFoot") or char:FindFirstChild("Left Leg")
         or char:FindFirstChild("HumanoidRootPart")
-        
     if not limb then return end
-
-    if typeof(firetouchinterest) == "function" then
-        firetouchinterest(limb, targetTile, 0)
-        task.wait(0.015)
-        firetouchinterest(limb, targetTile, 1)
+    if typeof(firetouchinterest)=="function" then
+        firetouchinterest(limb,targetTile,0); task.wait(0.015); firetouchinterest(limb,targetTile,1)
     else
-        local probe = Instance.new("Part")
-        probe.Name = "LegProbe"
-        probe.Size = limb.Size
-        probe.CanCollide = false
-        probe.Transparency = 1
-        probe.CFrame = targetTile.CFrame
-        probe.Parent = char
-        task.wait(0.02)
-        probe:Destroy()
+        local probe=Instance.new("Part"); probe.Name="LegProbe"
+        probe.Size=limb.Size; probe.CanCollide=false; probe.Transparency=1
+        probe.CFrame=targetTile.CFrame; probe.Parent=char
+        task.wait(0.02); probe:Destroy()
     end
-end
-
-local function createHighlight(part, color, name)
-    if part:FindFirstChild(name) then return end
-    if name == "Guess_Highlight" then
-        if part:FindFirstChild("Safe_Highlight") or part:FindFirstChild("Mine_Highlight") then return end
-    elseif name == "Safe_Highlight" or name == "Mine_Highlight" then
-        if part:FindFirstChild("Guess_Highlight") then part.Guess_Highlight:Destroy() end
-    end
-
-    local h = Instance.new("Highlight")
-    h.Name = name
-    h.Adornee = part
-    h.FillColor = color
-    h.FillTransparency = 0.4
-    h.OutlineTransparency = 0.5
-    h.DepthMode = Enum.HighlightDepthMode.Occluded 
-    h.Parent = part
-end
-
-local function cacheNeighbors(centerPart, forceRefresh)
-    if not forceRefresh and neighborMap[centerPart] then return end
-    local neighbors = {}
-    local boxSize = centerPart.Size * 2.5 
-    local partsInBox = workspace:GetPartBoundsInBox(centerPart.CFrame, boxSize)
-    
-    for _, p in ipairs(partsInBox) do
-        if p ~= centerPart and isTileCandidate(p) then
-            if math.abs(p.Position.Y - centerPart.Position.Y) < 1.5 then
-                local dist = (p.Position - centerPart.Position).Magnitude
-                if dist < (centerPart.Size.X * 1.85) then 
-                    table.insert(neighbors, p)
-                end
-            end
+    task.delay(0.4,function()
+        if not targetTile:IsDescendantOf(workspace) then return end
+        if isUnrevealed(targetTile) then
+            touchBlacklist[targetTile]=true; unmarkTile(targetTile)
         end
-    end
-    neighborMap[centerPart] = neighbors
-end
-
-local function requestReset()
-    if pendingReset then return end
-    pendingReset = true
-    task.delay(0.2, function()
-        pendingReset = false
-        if not isScanning then return end
-        for p, _ in pairs(knownSafe) do clearVisuals(p) end
-        for p, _ in pairs(knownMines) do clearVisuals(p) end
-        if currentBestGuess then clearVisuals(currentBestGuess) end
-        knownSafe = {}
-        knownMines = {}
-        currentBestGuess = nil
     end)
 end
 
-local function solveStructuralPatterns(tileDataList)
-    if not isPatternLibEnabled then return end
+local function createHighlight(part,color,name)
+    if part:FindFirstChild(name) then return end
+    if name=="Guess_Highlight" then
+        if part:FindFirstChild("Safe_Highlight") or part:FindFirstChild("Mine_Highlight") then return end
+    elseif name=="Safe_Highlight" or name=="Mine_Highlight" then
+        local g=part:FindFirstChild("Guess_Highlight"); if g then g:Destroy() end
+    end
+    local h=Instance.new("Highlight"); h.Name=name; h.Adornee=part
+    h.FillColor=color; h.FillTransparency=0.4; h.OutlineTransparency=0.5
+    h.DepthMode=Enum.HighlightDepthMode.Occluded; h.Parent=part
+end
 
-    for _, tData in ipairs(tileDataList) do
-        if #tData.unrevealed == tData.remaining and tData.remaining > 0 then
-            for _, p in ipairs(tData.unrevealed) do
-                if not knownMines[p] then
-                    knownMines[p] = true
-                    createHighlight(p, Color3.new(1,0,0), "Mine_Highlight")
-                end
-            end
-        elseif tData.remaining == 0 and #tData.unrevealed > 0 then
-            for _, p in ipairs(tData.unrevealed) do
-                if not knownSafe[p] then
-                    knownSafe[p] = true
-                    createHighlight(p, Color3.new(0,1,0), "Safe_Highlight")
+local function cacheNeighbors(centerPart,forceRefresh)
+    if not forceRefresh and neighborMap[centerPart] then return end
+    local neighbors={}
+    local partsInBox=workspace:GetPartBoundsInBox(centerPart.CFrame,centerPart.Size*2.5)
+    for _,p in ipairs(partsInBox) do
+        if p~=centerPart and isTileCandidate(p) then
+            if math.abs(p.Position.Y-centerPart.Position.Y)<1.5 then
+                if (p.Position-centerPart.Position).Magnitude<(centerPart.Size.X*1.85) then
+                    table.insert(neighbors,p)
                 end
             end
         end
+    end
+    neighborMap[centerPart]=neighbors
+end
+
+-- SURGICAL INVALIDATION: only invalidate tiles that share a neighbor with changedTile
+local function invalidateNeighborhood(changedTile)
+    -- changedTile just got revealed → its number-tile neighbors need re-eval
+    -- strip non-locked state from unrevealed tiles around changedTile's neighbors
+    local touched = {}
+    -- direct neighbors of changedTile
+    for _,nb in ipairs(neighborMap[changedTile] or {}) do
+        if not touched[nb] then
+            touched[nb] = true
+            -- for each unrevealed neighbor of nb that is not locked, clear speculative state
+            for _,nb2 in ipairs(neighborMap[nb] or {}) do
+                if not lockedSafe[nb2] and not lockedMines[nb2] then
+                    if knownSafe[nb2] then clearVisuals(nb2); knownSafe[nb2]=nil end
+                    if knownMines[nb2] then clearVisuals(nb2); knownMines[nb2]=nil end
+                end
+            end
+        end
+    end
+    if currentBestGuess and not currentBestGuess:IsDescendantOf(workspace) then
+        clearVisuals(currentBestGuess); currentBestGuess=nil
     end
 end
 
-local function solveAdvancedPatterns(tileDataList)
-    if not isPatternLibEnabled then return end
-
-    solveStructuralPatterns(tileDataList)
-
-    for i = 1, #tileDataList do
-        for j = i + 1, #tileDataList do
-            local t1, t2 = tileDataList[i], tileDataList[j]
-            
-            local t2Set = {}
-            for _, p in ipairs(t2.unrevealed) do t2Set[p] = true end
-            
-            local isSubset = true
-            for _, p in ipairs(t1.unrevealed) do
-                if not t2Set[p] then
-                    isSubset = false
-                    break
-                end
-            end
-            
-            if isSubset and #t2.unrevealed > #t1.unrevealed then
-                local diffUnrevealed = {}
-                local t1Set = {}
-                for _, p in ipairs(t1.unrevealed) do t1Set[p] = true end
-                for _, p in ipairs(t2.unrevealed) do
-                    if not t1Set[p] then table.insert(diffUnrevealed, p) end
-                end
-                
-                local diffMines = t2.remaining - t1.remaining
-                if diffMines == 0 and #diffUnrevealed > 0 then
-                    for _, p in ipairs(diffUnrevealed) do
-                        if not knownSafe[p] then
-                            knownSafe[p] = true
-                            createHighlight(p, Color3.new(0,1,0), "Safe_Highlight")
-                        end
-                    end
-                elseif diffMines == #diffUnrevealed and #diffUnrevealed > 0 then
-                    for _, p in ipairs(diffUnrevealed) do
-                        if not knownMines[p] then
-                            knownMines[p] = true
-                            createHighlight(p, Color3.new(1,0,0), "Mine_Highlight")
-                        end
-                    end
-                end
-            end
+-- legacy requestReset kept for onDescendantAdded path, now surgical
+local function requestReset()
+    if pendingReset then return end
+    pendingReset=true
+    task.delay(0.2,function()
+        pendingReset=false
+        if not isScanning then return end
+        for p,_ in pairs(knownSafe) do
+            if not lockedSafe[p] then clearVisuals(p); knownSafe[p]=nil end
         end
+        for p,_ in pairs(knownMines) do
+            if not lockedMines[p] then clearVisuals(p); knownMines[p]=nil end
+        end
+        if currentBestGuess then clearVisuals(currentBestGuess) end
+        currentBestGuess=nil
+    end)
+end
+
+-------------------------------------------------------------------------------
+-- TIER 2: Connected component grouping
+-- Two tileData entries are in the same component if their unrevealed sets overlap.
+-- Returns list of components, each is a list of tileData entries.
+-------------------------------------------------------------------------------
+local function buildConnectedComponents(tileDataList)
+    local n = #tileDataList
+    if n == 0 then return {} end
+
+    -- parent array for union-find
+    local parent = {}
+    for i = 1, n do parent[i] = i end
+
+    local function find(x)
+        while parent[x] ~= x do
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        end
+        return x
+    end
+    local function union(a, b)
+        a = find(a); b = find(b)
+        if a ~= b then parent[a] = b end
     end
 
-    local allUnrevealedSet = {}
-    local unrevealedList = {}
-    for _, tData in ipairs(tileDataList) do
-        for _, p in ipairs(tData.unrevealed) do
-            if not allUnrevealedSet[p] then
-                allUnrevealedSet[p] = true
-                table.insert(unrevealedList, p)
-            end
-        end
+    -- build a set of unrevealed parts per tileData index for fast overlap check
+    local sets = {}
+    for i, td in ipairs(tileDataList) do
+        local s = {}
+        for _, p in ipairs(td.unrevealed) do s[p] = true end
+        sets[i] = s
     end
 
-    -- ใช้ค่า EXACT_ENUM_MAX_SIZE ที่ปรับได้จาก Slider UI โดยตรง
-    if #unrevealedList > 0 and #unrevealedList <= EXACT_ENUM_MAX_SIZE then
-        local validCombinations = 0
-        local mineInclusionCount = {}
-        for _, p in ipairs(unrevealedList) do mineInclusionCount[p] = 0 end
-
-        local function evaluateCombination(index, currentAssignment)
-            if index > #unrevealedList then
-                local valid = true
-                for _, tData in ipairs(tileDataList) do
-                    local count = 0
-                    for _, p in ipairs(tData.unrevealed) do
-                        if currentAssignment[p] then count = count + 1 end
-                    end
-                    if count ~= tData.remaining then
-                        valid = false
+    -- union any two tileData entries that share at least one unrevealed tile
+    -- O(n² * avg_unrevealed) — acceptable since n is small (border tiles only)
+    for i = 1, n do
+        for j = i+1, n do
+            if find(i) ~= find(j) then
+                for p, _ in pairs(sets[i]) do
+                    if sets[j][p] then
+                        union(i, j)
                         break
                     end
                 end
-                if valid then
-                    validCombinations = validCombinations + 1
-                    for _, p in ipairs(unrevealedList) do
-                        if currentAssignment[p] then
-                            mineInclusionCount[p] = mineInclusionCount[p] + 1
-                        end
-                    end
-                end
-                return
+            end
+        end
+    end
+
+    -- group by root
+    local groups = {}
+    local rootToGroup = {}
+    for i = 1, n do
+        local root = find(i)
+        if not rootToGroup[root] then
+            rootToGroup[root] = {}
+            table.insert(groups, rootToGroup[root])
+        end
+        table.insert(rootToGroup[root], tileDataList[i])
+    end
+    return groups
+end
+
+-------------------------------------------------------------------------------
+-- SOLVER CORE
+-------------------------------------------------------------------------------
+local function solveStructural(tileDataList)
+    if not isPatternLibEnabled then return end
+    for _,tData in ipairs(tileDataList) do
+        if tData.remaining < 0 then
+            -- over-flagged: safe pass on unrevealed
+            for _,p in ipairs(tData.unrevealed) do
+                if not knownSafe[p] then markSafe(p) end
+            end
+        elseif #tData.unrevealed == tData.remaining and tData.remaining > 0 then
+            for _,p in ipairs(tData.unrevealed) do
+                if not knownMines[p] then markMine(p) end
+            end
+        elseif tData.remaining == 0 and #tData.unrevealed > 0 then
+            for _,p in ipairs(tData.unrevealed) do
+                if not knownSafe[p] then markSafe(p) end
+            end
+        end
+    end
+end
+
+local function solveSubset(tileDataList)
+    if not isPatternLibEnabled then return end
+    for i=1,#tileDataList do
+        for j=i+1,#tileDataList do
+            local t1,t2=tileDataList[i],tileDataList[j]
+            -- make sure t1 is the smaller one
+            if #t1.unrevealed > #t2.unrevealed then t1,t2=t2,t1 end
+            if #t1.unrevealed == 0 then continue end
+
+            local t2Set={}
+            for _,p in ipairs(t2.unrevealed) do t2Set[p]=true end
+            local isSubset=true
+            for _,p in ipairs(t1.unrevealed) do
+                if not t2Set[p] then isSubset=false; break end
             end
 
-            currentAssignment[unrevealedList[index]] = false
-            evaluateCombination(index + 1, currentAssignment)
-
-            currentAssignment[unrevealedList[index]] = true
-            evaluateCombination(index + 1, currentAssignment)
-        end
-
-        local success = pcall(function()
-            evaluateCombination(1, {})
-        end)
-
-        if success and validCombinations > 0 then
-            for _, p in ipairs(unrevealedList) do
-                local mineProb = mineInclusionCount[p] / validCombinations
-                if mineProb == 0 then
-                    if not knownSafe[p] then
-                        knownSafe[p] = true
-                        createHighlight(p, Color3.new(0,1,0), "Safe_Highlight")
-                    end
-                elseif mineProb == 1 then
-                    if not knownMines[p] then
-                        knownMines[p] = true
-                        createHighlight(p, Color3.new(1,0,0), "Mine_Highlight")
-                    end
+            if isSubset and #t2.unrevealed > #t1.unrevealed then
+                local t1Set={}
+                for _,p in ipairs(t1.unrevealed) do t1Set[p]=true end
+                local diff={}
+                for _,p in ipairs(t2.unrevealed) do
+                    if not t1Set[p] then table.insert(diff,p) end
+                end
+                local diffMines=t2.remaining-t1.remaining
+                if diffMines==0 then
+                    for _,p in ipairs(diff) do if not knownSafe[p] then markSafe(p) end end
+                elseif diffMines==#diff and #diff>0 then
+                    for _,p in ipairs(diff) do if not knownMines[p] then markMine(p) end end
                 end
             end
         end
     end
 end
 
-local function solveBoard()
-    if pendingReset then return end 
-    probabilityMap = {} 
-    
-    local tileDataList = {}
+-- TIER 3: exact enum with early-exit pruning per connected component
+local function solveExactComponent(componentTiles)
+    -- collect unique unrevealed across this component
+    local unrevSet={}; local unrevList={}
+    for _,td in ipairs(componentTiles) do
+        for _,p in ipairs(td.unrevealed) do
+            if not unrevSet[p] then unrevSet[p]=true; table.insert(unrevList,p) end
+        end
+    end
+    if #unrevList==0 or #unrevList>EXACT_ENUM_MAX_SIZE then return end
 
-    for centerPart, targetNum in pairs(numberTiles) do
-        if not centerPart:IsDescendantOf(workspace) then 
-            numberTiles[centerPart] = nil
-            continue 
+    -- build tileToConstraints: part → list of tileData that mention it
+    -- used for pruning at each assignment step
+    local tileToTD = {}
+    for _,p in ipairs(unrevList) do tileToTD[p] = {} end
+    for _,td in ipairs(componentTiles) do
+        for _,p in ipairs(td.unrevealed) do
+            table.insert(tileToTD[p], td)
+        end
+    end
+
+    local validCombinations = 0
+    local mineCount = {}
+    for _,p in ipairs(unrevList) do mineCount[p] = 0 end
+
+    -- per-tileData running counts during recursion
+    local assignedMines  = {}  -- td → count of mines assigned so far in its unrevealed
+    local assignedTotal  = {}  -- td → count of tiles assigned so far in its unrevealed
+    for _,td in ipairs(componentTiles) do
+        assignedMines[td] = 0
+        assignedTotal[td] = 0
+    end
+
+    local assignment = {}  -- part → true/false (mine/safe)
+
+    local function recurse(idx)
+        if idx > #unrevList then
+            -- leaf: check all constraints are exactly satisfied
+            for _,td in ipairs(componentTiles) do
+                if assignedMines[td] ~= td.remaining then return end
+            end
+            validCombinations = validCombinations + 1
+            for _,p in ipairs(unrevList) do
+                if assignment[p] then mineCount[p] = mineCount[p] + 1 end
+            end
+            return
         end
 
-        local neighbors = neighborMap[centerPart]
-        if not neighbors then continue end
-        
-        local unrevealed = {}
-        local mineCount = 0
-        
-        for _, n in ipairs(neighbors) do
-            if knownMines[n] then 
-                mineCount = mineCount + 1
-            elseif isUnrevealed(n) and not knownSafe[n] then 
-                table.insert(unrevealed, n) 
+        local part = unrevList[idx]
+        local affectedTDs = tileToTD[part]
+
+        for _,isMine in ipairs({false, true}) do
+            -- update running counts
+            for _,td in ipairs(affectedTDs) do
+                assignedTotal[td] = assignedTotal[td] + 1
+                if isMine then assignedMines[td] = assignedMines[td] + 1 end
+            end
+            assignment[part] = isMine
+
+            -- TIER 3 PRUNING: check only constraints affected by this assignment
+            local pruned = false
+            for _,td in ipairs(affectedTDs) do
+                local remaining = td.remaining
+                local am = assignedMines[td]
+                local at = assignedTotal[td]
+                local left = #td.unrevealed - at  -- unassigned tiles left in this constraint
+                -- violated: too many mines already, OR not enough tiles left to reach target
+                if am > remaining or (am + left) < remaining then
+                    pruned = true
+                    break
+                end
+            end
+
+            if not pruned then
+                recurse(idx + 1)
+            end
+
+            -- undo
+            for _,td in ipairs(affectedTDs) do
+                assignedTotal[td] = assignedTotal[td] - 1
+                if isMine then assignedMines[td] = assignedMines[td] - 1 end
             end
         end
-        
-        local remainingMines = targetNum - mineCount
-        
-        if #unrevealed > 0 then
-            table.insert(tileDataList, {
-                tile = centerPart,
-                number = targetNum,
-                unrevealed = unrevealed,
-                remaining = remainingMines
+    end
+
+    local ok = pcall(recurse, 1)
+    if ok and validCombinations > 0 then
+        for _,p in ipairs(unrevList) do
+            local prob = mineCount[p] / validCombinations
+            if prob == 0 then
+                if not knownSafe[p]  then markSafe(p)  end
+            elseif prob == 1 then
+                if not knownMines[p] then markMine(p) end
+            end
+        end
+    end
+end
+
+local function solveAdvanced(tileDataList)
+    if not isPatternLibEnabled then return end
+    solveSubset(tileDataList)
+
+    -- TIER 2: split into connected components, solve each separately
+    local components = buildConnectedComponents(tileDataList)
+    for _,comp in ipairs(components) do
+        solveExactComponent(comp)
+    end
+end
+
+-- TIER 1: propagation loop — keeps solving until no new info discovered this cycle
+local function runPropagationLoop(tileDataList)
+    -- prime the queue with all current number tiles
+    table.clear(propagationQueue)
+    table.clear(inPropQueue)
+    for centerPart,_ in pairs(numberTiles) do
+        if centerPart:IsDescendantOf(workspace) and not inPropQueue[centerPart] then
+            inPropQueue[centerPart] = true
+            table.insert(propagationQueue, centerPart)
+        end
+    end
+
+    local iterations = 0
+    local maxIter = 12  -- safety cap: never spin more than 12 propagation waves
+
+    while #propagationQueue > 0 and iterations < maxIter do
+        iterations = iterations + 1
+        local wave = propagationQueue
+        propagationQueue = {}
+        inPropQueue = {}
+
+        -- build tileDataList for tiles in this wave only
+        local waveTileData = {}
+        for _,centerPart in ipairs(wave) do
+            if not centerPart:IsDescendantOf(workspace) then continue end
+            local neighbors = neighborMap[centerPart]
+            if not neighbors then continue end
+            local targetNum = numberTiles[centerPart]
+            if not targetNum then continue end
+
+            local unrevealed = {}
+            local mc = 0
+            for _,n in ipairs(neighbors) do
+                if knownMines[n] then
+                    mc = mc + 1
+                elseif isUnrevealed(n) and not knownSafe[n] then
+                    table.insert(unrevealed, n)
+                end
+            end
+            local remaining = targetNum - mc
+            -- GUARD: skip if remaining < 0 (over-flagged) or no unrevealed
+            if remaining < 0 or #unrevealed == 0 then continue end
+
+            table.insert(waveTileData, {
+                tile=centerPart, number=targetNum,
+                unrevealed=unrevealed, remaining=remaining
             })
         end
-        
-        if remainingMines == #unrevealed and #unrevealed > 0 then
-            for _, p in ipairs(unrevealed) do 
-                if not knownMines[p] then 
-                    knownMines[p] = true
-                    createHighlight(p, Color3.new(1,0,0), "Mine_Highlight") 
-                end 
-            end
-        elseif remainingMines == 0 and #unrevealed > 0 then
-            for _, p in ipairs(unrevealed) do 
-                if not knownSafe[p] then 
-                    knownSafe[p] = true
-                    createHighlight(p, Color3.new(0,1,0), "Safe_Highlight") 
-                end 
-            end
-        else
-            if #unrevealed > 0 then
-                local prob = remainingMines / #unrevealed
-                for _, p in ipairs(unrevealed) do
-                    if not probabilityMap[p] or prob > probabilityMap[p] then
-                        probabilityMap[p] = prob
-                    end
+
+        if #waveTileData == 0 then break end
+
+        -- structural pass on this wave
+        solveStructural(waveTileData)
+        -- advanced (subset + exact enum per component)
+        solveAdvanced(waveTileData)
+        -- propagationQueue is now populated by markSafe/markMine calls above
+        -- next iteration will process those
+    end
+
+    -- return full tileDataList for probability map
+    local fullTileData = {}
+    for centerPart,targetNum in pairs(numberTiles) do
+        if not centerPart:IsDescendantOf(workspace) then continue end
+        local neighbors = neighborMap[centerPart]
+        if not neighbors then continue end
+        local unrevealed={}; local mc=0
+        for _,n in ipairs(neighbors) do
+            if knownMines[n] then mc=mc+1
+            elseif isUnrevealed(n) and not knownSafe[n] then table.insert(unrevealed,n) end
+        end
+        local remaining=targetNum-mc
+        if remaining>=0 and #unrevealed>0 then
+            table.insert(fullTileData,{
+                tile=centerPart,number=targetNum,
+                unrevealed=unrevealed,remaining=remaining
+            })
+        end
+    end
+    return fullTileData
+end
+
+local function solveBoard()
+    if pendingReset then return end
+    probabilityMap={}
+
+    local fullTileData = runPropagationLoop({})
+
+    -- build probability map from whatever remains uncertain
+    for _,tData in ipairs(fullTileData) do
+        if tData.remaining>0 and #tData.unrevealed>0 and tData.remaining<#tData.unrevealed then
+            local prob=tData.remaining/#tData.unrevealed
+            for _,p in ipairs(tData.unrevealed) do
+                if not probabilityMap[p] or prob>probabilityMap[p] then
+                    probabilityMap[p]=prob
                 end
             end
         end
     end
 
-    solveAdvancedPatterns(tileDataList)
+    -- best guess cleanup
+    local hasSafe=false
+    for _ in pairs(knownSafe) do hasSafe=true; break end
 
-    local hasSafeMoves = false
-    for _, _ in pairs(knownSafe) do hasSafeMoves = true; break end
-    
-    if currentBestGuess and (not currentBestGuess:IsDescendantOf(workspace) or knownSafe[currentBestGuess] or knownMines[currentBestGuess] or hasSafeMoves) then
-        if currentBestGuess:IsDescendantOf(workspace) and currentBestGuess:FindFirstChild("Guess_Highlight") then
-            currentBestGuess.Guess_Highlight:Destroy()
+    if currentBestGuess and (
+        not currentBestGuess:IsDescendantOf(workspace)
+        or knownSafe[currentBestGuess] or knownMines[currentBestGuess] or hasSafe
+    ) then
+        if currentBestGuess:IsDescendantOf(workspace) then
+            local h=currentBestGuess:FindFirstChild("Guess_Highlight"); if h then h:Destroy() end
         end
-        currentBestGuess = nil
+        currentBestGuess=nil
     end
 
-    if not hasSafeMoves then
-        local bestPart = nil
-        local lowestProb = 1.1 
-        
-        for part, prob in pairs(probabilityMap) do
+    if not hasSafe then
+        local best=nil; local low=1.1
+        for part,prob in pairs(probabilityMap) do
             if not knownMines[part] and not knownSafe[part] then
-                if prob < lowestProb then
-                    lowestProb = prob
-                    bestPart = part
-                end
+                if prob<low then low=prob; best=part end
             end
         end
-        
-        if bestPart and bestPart ~= currentBestGuess then
-            if currentBestGuess and currentBestGuess:IsDescendantOf(workspace) and currentBestGuess:FindFirstChild("Guess_Highlight") then
-                currentBestGuess.Guess_Highlight:Destroy()
+        if best and best~=currentBestGuess then
+            if currentBestGuess and currentBestGuess:IsDescendantOf(workspace) then
+                local h=currentBestGuess:FindFirstChild("Guess_Highlight"); if h then h:Destroy() end
             end
-            currentBestGuess = bestPart
-            createHighlight(bestPart, Color3.fromRGB(0, 100, 255), "Guess_Highlight") 
+            currentBestGuess=best
+            createHighlight(best,Color3.fromRGB(0,100,255),"Guess_Highlight")
         end
     end
 end
@@ -811,48 +811,49 @@ end
 local function startSolverLoop()
     task.spawn(function()
         while isScanning do
-            local validParts = {}
-            local charPos = getCharPos()
-            
-            for _, part in ipairs(cachedParts) do
+            local validParts={}
+            local charPos=getCharPos()
+            for _,part in ipairs(cachedParts) do
                 if part and part:IsDescendantOf(workspace) then
                     if isExcluded(part) then
-                        clearVisuals(part)
-                        knownSafe[part] = nil
-                        knownMines[part] = nil
-                        numberTiles[part] = getNumber(part)
+                        -- tile revealed → surgical invalidation then update numberTiles
+                        if knownSafe[part] or knownMines[part] or lockedSafe[part] or lockedMines[part] then
+                            invalidateNeighborhood(part)
+                        end
+                        unmarkTile(part)
+                        numberTiles[part]=getNumber(part)
+                        -- re-queue number tile neighbors for propagation
+                        if numberTiles[part] and neighborMap[part] then
+                            for _,nb in ipairs(neighborMap[part]) do
+                                if numberTiles[nb] and not inPropQueue[nb] then
+                                    inPropQueue[nb]=true; table.insert(propagationQueue,nb)
+                                end
+                            end
+                        end
                         continue
                     end
-                    
-                    table.insert(validParts, part)
-                    
-                    if maxDistance > 0 and charPos then
-                        local dist = (part.Position - charPos).Magnitude
-                        if dist > maxDistance then
-                            clearVisuals(part)
-                            numberTiles[part] = nil
-                            knownSafe[part] = nil
-                            knownMines[part] = nil
-                            continue 
+                    table.insert(validParts,part)
+                    if maxDistance>0 and charPos then
+                        if (part.Position-charPos).Magnitude>maxDistance then
+                            if not lockedSafe[part] and not lockedMines[part] then
+                                clearVisuals(part); numberTiles[part]=nil
+                                knownSafe[part]=nil; knownMines[part]=nil
+                            end
+                            continue
                         end
                     end
-                    
-                    if not neighborMap[part] then cacheNeighbors(part, false) end
-                    
-                    local num = getNumber(part)
-                    if num then
-                        numberTiles[part] = num
-                    elseif isExcluded(part) then
-                        numberTiles[part] = nil
-                    end
+                    if not neighborMap[part] then cacheNeighbors(part,false) end
+                    local num=getNumber(part)
+                    if num then numberTiles[part]=num
+                    elseif isExcluded(part) then numberTiles[part]=nil end
                 else
-                    neighborMap[part] = nil
-                    numberTiles[part] = nil
-                    knownMines[part] = nil
-                    knownSafe[part] = nil
+                    neighborMap[part]=nil; numberTiles[part]=nil
+                    knownMines[part]=nil; knownSafe[part]=nil
+                    lockedSafe[part]=nil; lockedMines[part]=nil
+                    touchBlacklist[part]=nil
                 end
             end
-            cachedParts = validParts
+            cachedParts=validParts
             solveBoard()
             task.wait(0.12)
         end
@@ -861,134 +862,148 @@ end
 
 local function onDescendantAdded(descendant)
     if isScanning and isTileCandidate(descendant) then
-        table.insert(cachedParts, descendant)
-        task.delay(0.1, function() 
-            if descendant:IsDescendantOf(workspace) then 
-                cacheNeighbors(descendant, true) 
-                for _, neighbor in ipairs(neighborMap[descendant] or {}) do
-                    cacheNeighbors(neighbor, true)
+        table.insert(cachedParts,descendant)
+        task.delay(0.1,function()
+            if descendant:IsDescendantOf(workspace) then
+                cacheNeighbors(descendant,true)
+                for _,nb in ipairs(neighborMap[descendant] or {}) do
+                    cacheNeighbors(nb,true)
                 end
                 requestReset()
-            end 
+            end
         end)
     end
 end
 
 -------------------------------------------------------------------------------
--- UI INTERACTIONS & BUTTONS
+-- SLIDER LOGIC
 -------------------------------------------------------------------------------
-
-minBtn.MouseButton1Click:Connect(function()
-    isMinimized = not isMinimized
-    if isMinimized then
-        minBtn.Text = "+"
-        contentContainer.Visible = false
-        mainFrame:TweenSize(UDim2.new(0, 220, 0, 32), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.15, true)
-    else
-        minBtn.Text = "-"
-        contentContainer.Visible = true
-        mainFrame:TweenSize(UDim2.new(0, 220, 0, 310), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.15, true)
+local draggingSlider=false; local draggingEnum=false
+sliderButton.MouseButton1Down:Connect(function() draggingSlider=true end)
+enumSliderButton.MouseButton1Down:Connect(function() draggingEnum=true end)
+UserInputService.InputEnded:Connect(function(i)
+    if i.UserInputType==Enum.UserInputType.MouseButton1 then
+        draggingSlider=false; draggingEnum=false
+    end
+end)
+UserInputService.InputChanged:Connect(function(i)
+    if i.UserInputType~=Enum.UserInputType.MouseMovement then return end
+    local mp=UserInputService:GetMouseLocation()
+    if draggingSlider then
+        local bp=sliderBar.AbsolutePosition; local bs=sliderBar.AbsoluteSize
+        local sc2=math.clamp(mp.X-bp.X,0,bs.X)/bs.X
+        maxDistance=math.floor(sc2*250)
+        sliderFill.Size=UDim2.new(sc2,0,1,0)
+        sliderTitle.Text=maxDistance==0 and "Anti-Lag Distance: OFF (Infinite)"
+            or string.format("Anti-Lag Distance: %d Studs",maxDistance)
+    end
+    if draggingEnum then
+        local bp=enumSliderBar.AbsolutePosition; local bs=enumSliderBar.AbsoluteSize
+        local sc2=math.clamp(mp.X-bp.X,0,bs.X)/bs.X
+        EXACT_ENUM_MAX_SIZE=math.floor(5+sc2*25)
+        enumSliderFill.Size=UDim2.new(sc2,0,1,0)
+        enumSliderTitle.Text=string.format("Exact Enum Cap: %d",EXACT_ENUM_MAX_SIZE)
     end
 end)
 
-closeBtn.MouseButton1Click:Connect(function()
-    fullCleanup()
-    screenGui:Destroy()
+-------------------------------------------------------------------------------
+-- UI BUTTONS
+-------------------------------------------------------------------------------
+minBtn.MouseButton1Click:Connect(function()
+    isMinimized=not isMinimized
+    if isMinimized then
+        minBtn.Text="+"; contentContainer.Visible=false
+        mainFrame:TweenSize(UDim2.new(0,220,0,32),Enum.EasingDirection.Out,Enum.EasingStyle.Quad,0.15,true)
+    else
+        minBtn.Text="-"; contentContainer.Visible=true
+        mainFrame:TweenSize(UDim2.new(0,220,0,310),Enum.EasingDirection.Out,Enum.EasingStyle.Quad,0.15,true)
+    end
 end)
+
+closeBtn.MouseButton1Click:Connect(function() fullCleanup(); screenGui:Destroy() end)
 
 toggleBtn.MouseButton1Click:Connect(function()
     if isScanning then
         fullCleanup()
-        toggleBtn.Text = "START"
-        toggleBtn.TextColor3 = Color3.fromRGB(100, 255, 100)
-        fastBtn.Text = "AUTO TOUCH: OFF"
-        fastBtn.TextColor3 = Color3.fromRGB(100, 220, 255)
-        status.Text = "Status: Offline"
-        status.TextColor3 = Color3.fromRGB(255, 90, 90)
+        toggleBtn.Text="START"; toggleBtn.TextColor3=Color3.fromRGB(100,255,100)
+        fastBtn.Text="AUTO TOUCH: OFF"; fastBtn.TextColor3=Color3.fromRGB(100,220,255)
+        status.Text="Status: Offline"; status.TextColor3=Color3.fromRGB(255,90,90)
     else
-        isScanning = true
-        toggleBtn.Text = "STOP"
-        toggleBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
-        status.Text = "Status: Scanning..."
-        status.TextColor3 = Color3.fromRGB(100, 255, 100)
-        
-        cachedParts = {}; neighborMap = {}
-        for _, obj in ipairs(workspace:GetDescendants()) do
-            if isTileCandidate(obj) then 
-                table.insert(cachedParts, obj)
-                cacheNeighbors(obj, false)
+        isScanning=true
+        toggleBtn.Text="STOP"; toggleBtn.TextColor3=Color3.fromRGB(255,100,100)
+        status.Text="Status: Scanning..."; status.TextColor3=Color3.fromRGB(100,255,100)
+        cachedParts={}; neighborMap={}
+        for _,obj in ipairs(workspace:GetDescendants()) do
+            if isTileCandidate(obj) then
+                table.insert(cachedParts,obj); cacheNeighbors(obj,false)
             end
         end
-        table.insert(connections, workspace.DescendantAdded:Connect(onDescendantAdded))
+        table.insert(connections,workspace.DescendantAdded:Connect(onDescendantAdded))
         startSolverLoop()
     end
 end)
 
 patternBtn.MouseButton1Click:Connect(function()
-    isPatternLibEnabled = not isPatternLibEnabled
+    isPatternLibEnabled=not isPatternLibEnabled
     if isPatternLibEnabled then
-        patternBtn.Text = "PATTERN LIB: ON"
-        patternBtn.TextColor3 = Color3.fromRGB(100, 255, 150)
+        patternBtn.Text="PATTERN LIB: ON"; patternBtn.TextColor3=Color3.fromRGB(100,255,150)
     else
-        patternBtn.Text = "PATTERN LIB: OFF"
-        patternBtn.TextColor3 = Color3.fromRGB(255, 150, 100)
+        patternBtn.Text="PATTERN LIB: OFF"; patternBtn.TextColor3=Color3.fromRGB(255,150,100)
     end
 end)
 
 fastBtn.MouseButton1Click:Connect(function()
     if not isScanning then return end
-    isAutoTouching = not isAutoTouching 
-    
+    isAutoTouching=not isAutoTouching
     if isAutoTouching then
-        fastBtn.Text = "AUTO TOUCH: ON"
-        fastBtn.TextColor3 = Color3.fromRGB(100, 255, 100)
-        status.Text = "Status: Proximity Active"
-        
+        fastBtn.Text="AUTO TOUCH: ON"; fastBtn.TextColor3=Color3.fromRGB(100,255,100)
+        status.Text="Status: Proximity Active"
         task.spawn(function()
             while isAutoTouching and isScanning do
                 if not pendingReset then
-                    local charPos = getCharPos()
+                    local charPos=getCharPos()
                     refreshFlagCache()
-                    
-                    local misplacedFlags = {}
-                    for part, _ in pairs(knownSafe) do
+                    -- remove misplaced flags on safe tiles
+                    local misplaced={}
+                    for part,_ in pairs(knownSafe) do
                         if part and part:IsDescendantOf(workspace) and hasFlag(part) then
-                            table.insert(misplacedFlags, part)
+                            table.insert(misplaced,part)
                         end
                     end
-                    sortByProximity(misplacedFlags, charPos)
-                    for _, part in ipairs(misplacedFlags) do
+                    sortByProximity(misplaced,charPos)
+                    for _,part in ipairs(misplaced) do
                         if not isAutoTouching or not isScanning or pendingReset then break end
                         clickTile(part); task.wait(0.02)
                     end
-                    
-                    local minesToFlag = {}
-                    for part, _ in pairs(knownMines) do
+                    -- flag mines
+                    local toFlag={}
+                    for part,_ in pairs(knownMines) do
                         if part and part:IsDescendantOf(workspace) and not hasFlag(part) then
-                            table.insert(minesToFlag, part)
+                            table.insert(toFlag,part)
                         end
                     end
-                    sortByProximity(minesToFlag, charPos)
-                    for _, part in ipairs(minesToFlag) do
+                    sortByProximity(toFlag,charPos)
+                    for _,part in ipairs(toFlag) do
                         if not isAutoTouching or not isScanning or pendingReset then break end
                         clickTile(part); task.wait(0.02)
                     end
-                    
-                    local safeToReveal = {}
-                    for part, _ in pairs(knownSafe) do
-                        if part and part:IsDescendantOf(workspace) and not hasFlag(part) then
-                            table.insert(safeToReveal, part)
+                    -- reveal safe tiles
+                    local safeToReveal={}
+                    for part,_ in pairs(knownSafe) do
+                        if part and part:IsDescendantOf(workspace)
+                        and not hasFlag(part) and not touchBlacklist[part] then
+                            table.insert(safeToReveal,part)
                         end
                     end
-                    
-                    sortByProximity(safeToReveal, charPos)
-                    
-                    if #safeToReveal > 0 then
-                        local batchCount = math.min(#safeToReveal, BATCH_SIZE)
-                        for i = 1, batchCount do
-                            local part = safeToReveal[i]
+                    sortByProximity(safeToReveal,charPos)
+                    if #safeToReveal>0 then
+                        local bc=math.min(#safeToReveal,BATCH_SIZE)
+                        for i=1,bc do
+                            local part=safeToReveal[i]
                             task.spawn(function()
-                                if isAutoTouching and isScanning and not pendingReset then triggerTileTouch(part) end
+                                if isAutoTouching and isScanning and not pendingReset then
+                                    triggerTileTouch(part)
+                                end
                             end)
                         end
                         task.wait(0.04)
@@ -996,23 +1011,18 @@ fastBtn.MouseButton1Click:Connect(function()
                         task.wait(0.06)
                     end
                 else
-                    task.wait(0.1) 
+                    task.wait(0.1)
                 end
             end
-            isAutoTouching = false
-            fastBtn.Text = "AUTO TOUCH: OFF"
-            fastBtn.TextColor3 = Color3.fromRGB(100, 220, 255)
-            if isScanning then status.Text = "Status: Scanning..." end
+            isAutoTouching=false
+            fastBtn.Text="AUTO TOUCH: OFF"; fastBtn.TextColor3=Color3.fromRGB(100,220,255)
+            if isScanning then status.Text="Status: Scanning..." end
         end)
     else
-        isAutoTouching = false
-        fastBtn.Text = "AUTO TOUCH: OFF"
-        fastBtn.TextColor3 = Color3.fromRGB(100, 220, 255)
-        status.Text = "Status: Scanning..."
+        isAutoTouching=false
+        fastBtn.Text="AUTO TOUCH: OFF"; fastBtn.TextColor3=Color3.fromRGB(100,220,255)
+        status.Text="Status: Scanning..."
     end
 end)
 
-unloadBtn.MouseButton1Click:Connect(function()
-    fullCleanup()
-    screenGui:Destroy()
-end)
+unloadBtn.MouseButton1Click:Connect(function() fullCleanup(); screenGui:Destroy() end)
